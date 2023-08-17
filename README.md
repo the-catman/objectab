@@ -26,16 +26,16 @@ If even one byte is malformed, there is a very high possibility of this breaking
 
 I have covered most things you should know beforehand.
 
-However, one of THE MOST important things is the lookup, if you're storing objects.
+However, one of the most important things is the lookup, if you're storing objects.
 
-The lookup has to be ***exactly*** the same on both the sender and receiver, or else every key that is not present in the receiver's lookup gets set to `undefined`.
+The lookup has to be ***exactly*** the same on both the sender and receiver, or else every key that is present on the sender's lookup and is not present in the receiver's lookup gets set to `undefined`.
 
 Another thing is that you can only retrieve objects in the same order as you stored them.
 
 You *can* store Integers with the `storeData` function, but this library mainly uses BigInts, meaning other functions do not support Integers.
 If you try and pass an integer to `storeData`, a warning is logged if objectab.OAB_WARN_INT_NOT_SUPP_SET is called to true
 
-If you attempt it, the result is unknown, since I haven't tested what would happen if ambitious programmers decided to break my library.
+If you attempt to forcefully store integers outsite of `storeData`, I don't know what will happen, (nor do I care, since I haven't tested what would happen if ambitious programmers decided to break my library).
 
 Floats are totally not supported, due to the nature of bigints and this library.
 
@@ -95,15 +95,25 @@ Now to move onto why you're probably here: Object storing.
 This library can store the following:
 
 NaN
+
 undefined
+
 null
+
 true
+
 false
+
 positive integers
+
 negative integers
+
 null terminated strings
+
 length based strings
+
 objects
+
 arrays
 
 If a value is passed that does not meet one of these requirements, an error is thrown.

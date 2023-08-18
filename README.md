@@ -20,7 +20,6 @@ Not really. JSON is way more versatile, less buggy and less prone to errors. How
 
 It is also not natively a bytecode encoder, so you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array, which is even slower.
 
-
 # Is it efficient?
 
 It probably is way more efficient than JSON.
@@ -47,16 +46,17 @@ The lookup has to be ***exactly*** the same on both the sender and receiver, or 
 
 Another thing is that you can only retrieve objects in the same order as you stored them.
 
-You *can* store Integers with the `storeData` function, but this library mainly uses BigInts, meaning other functions do not support Integers.
-If you try and pass an integer to `storeData`, a warning is logged if objectab.OAB_WARN_INT_NOT_SUPP_SET is called to true
+You *can* (but really shouldn't) store Integers with the `storeData` function.
 
-If you attempt to forcefully store integers outsite of `storeData`, I don't know what will happen, (nor do I care, since I haven't tested what would happen if ambitious programmers decided to break my library).
+This library mainly uses BigInts, meaning other functions do not support Integers.
+
+If you attempt to forcefully store integers outsite of `storeData`, I don't know what will happen (nor do I care, since I haven't tested what would happen if ambitious programmers decided to break my library).
 
 Floats are totally not supported, due to the nature of bigints and this library.
 
 # Great! Where is the code?
 
-The below is javascript code, however, porting to typescript is even easier.
+The below is javascript code, however, porting to typescript way better. Definitely do use typescript to avoid unintentional errors.
 
 ```js
 const { Reader, Writer } = require("objectab");
@@ -132,7 +132,7 @@ objects
 arrays
 
 If a value is passed that does not meet one of these requirements, an error is thrown.
-Floats aren't supported.
+(Floats aren't supported.)
 
 ```js
 const { Reader, Writer } = require("objectab");

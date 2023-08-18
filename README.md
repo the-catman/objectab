@@ -1,14 +1,29 @@
 # OAB
 
-ObjectAB or OAB stands for Object to ArrayBuffer
+ObjectAB or OAB stands for Object to ArrayBuffer.
+
+# New stuff
+
+MAJOR UPDATE!
+
+Actually put error and out of bounds checking and handling.
+
+THE PREVIOUS VERSION IS DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
 
 # What is this library?
 
 This is a library for converting some javascript objects into a Uint8Array.
 
+# So is it JSON?
+
+Not really. JSON is way more versatile, less buggy and less prone to errors. However, it is quite slow and the output is very large.
+
+It is also not natively a bytecode encoder, so you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array, which is even slower.
+
+
 # Is it efficient?
 
-It probably is way more efficient than JSON, albeit less understandable - which is why JSON is JSON.
+It probably is way more efficient than JSON.
 
 # Is it reliable?
 
@@ -67,12 +82,12 @@ writer.vu(1093021321n);
 // You can store positive numbers, it's just not very space efficient since it uses 1 extra bit to store the sign
 writer.vi(-123032321n);
 
-// This is a null terminated string. This is an okay way of storing data, since trying to include a null character anywhere in the string breaks it.
+// This is a null terminated string (NT string). This is an okay way of storing data, since trying to include a null character anywhere in the string breaks it.
 writer.string("Hello!");
 
-// This is a length-based string. Before the string data, it appends the string's length.
-// CURRENTLY VERY DANGEROUS, since the sender could be malicious and specify the length to be extremely long.
-// This will hopefully be fixed in the next version, where I will add out of bound checks
+// This is a length-based string (LN string). Before the string data, it appends the string's length.
+// The current version checks whether the reader is going out of bounds of the Uint8Array, and if it is, the loop is exited.
+// Therefore, this is pretty safe.
 writer.stringLN("Hello from LENGTH!");
 
 // Writer.out() outputs the buffer as a Uint8Array
@@ -130,21 +145,40 @@ const reader = new Reader(writer.out());
 
 console.log(reader.getData()); // [1n, 2n, 3n, [{hello: 123n}, "hello hello 1234"]]
 
-
 ```
 
-# Lookup tables
+Also, `storeData` takes an optional boolean parameter called `storeStringAsNT`, defaulted to true.
 
-Both `Reader` and `Writer` take an array (string[]) as an optional parameter. That is the lookup table which HAS to be shared between the receiver and sender.
+As you can guess from the name, it determines whether or not all strings that are found in `storeData` should be stored as "Null Terminated" or "Length Based" strings.
+
+# Optional parameters
+
+Both `Reader` and `Writer` take an object (called options) as an optional parameter.
+
+The `Reader` may have the following for optional parameters:
+* lookupJSON: string[]
+* OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean = false
+* OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean = false
+* OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS: boolean = false
+* OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS: boolean = false
+
+The `Writer` may have the following for optional parameters:
+* lookupJSON: string[]
+* OAB_WARN_LOOKUP_NOT_FOUND: boolean = false
+* OAB_WARN_INT_NOT_SUPP: boolean = false
+
+Both `Reader` and `Writer` share an optional parameter: the lookup table, which has to be the same between the receiver and sender.
+
 It is for objects, so instead of writing the full key of the object as a string, we can just refer to the lookup table to make our task much more efficient.
-The actual output is unaffected, however, the size is.
 
-If objectab.OAB_WARN_LOOKUP_NOT_FOUND_SET is called to true, then a warning will be shown when a Writer tries to write and the object's value is not found.
+If `options.OAB_WARN_LOOKUP_NOT_FOUND_SET` is set to true, then a warning will be shown when a Writer tries to write and the object's value is not found.
 
 ```js
 const { Reader, Writer } = require("objectab");
 
-const writer_1 = new Writer(["hello213213213213213213"]);
+const writer_1 = new Writer({
+    lookupJSON: ["hello213213213213213213"]
+});
 
 writer_1.storeData({"hello213213213213213213": 123n});
 
@@ -156,7 +190,9 @@ writer_2.storeData({"hello213213213213213213": 123n});
 
 console.log(writer_2.out().length); // 29
 
-console.log(new Reader(writer_1.out(), ["hello213213213213213213"]).getData()); // {"hello213213213213213213": 123n}
+console.log(new Reader(writer_1.out(), {
+    lookupJSON: ["hello213213213213213213"]
+}).getData()); // {"hello213213213213213213": 123n}
 
 console.log(new Reader(writer_2.out()).getData()); // {"hello213213213213213213": 123n}
 
@@ -167,37 +203,72 @@ console.log(new Reader(writer_2.out()).getData()); // {"hello213213213213213213"
 Turn the warnings for the lookup table failing to find a value (in `storeData`) and an integer being passed to `storeData` on or off using the following:
 
 ```js
-const { Reader, Writer, OAB_WARN_LOOKUP_NOT_FOUND_SET, OAB_WARN_INT_NOT_SUPP_SET } = require("objectab");
+const { Reader, Writer } = require("objectab");
 
-const writer = new Writer();
+const writer = new Writer({
+    OAB_WARN_LOOKUP_NOT_FOUND: false,
+    OAB_WARN_INT_NOT_SUPP: false
+});
 
 writer.storeData({hello: "hi"}); // No warning pops up in console
 writer.storeData(1); // No warning pops up in console
 
-OAB_WARN_LOOKUP_NOT_FOUND_SET(true);
-OAB_WARN_INT_NOT_SUPP_SET(true);
+writer.OAB_WARN_LOOKUP_NOT_FOUND = true;
+writer.OAB_WARN_INT_NOT_SUPP = true;
 
 writer.storeData({hello: "hi"}); // Warning pops up: Found a key that wasn't in the lookup table! hello.
 writer.storeData(1); // Warning pops up: Warning: Regular integers are not supported. However, it was automatically converted to a bigint.
 
-OAB_WARN_LOOKUP_NOT_FOUND_SET(false);
-OAB_WARN_INT_NOT_SUPP_SET(false);
+writer.OAB_WARN_LOOKUP_NOT_FOUND = false;
+writer.OAB_WARN_INT_NOT_SUPP = false;
 
 writer.storeData({hello: "hi"}); // No warning pops up in console
 writer.storeData(1); // No warning pops up in console
 
 ```
 
+# Error handling
+
+Make sure to check out the optional parameters.
+
+* The way `storeData` works is that it puts a byte before the actual data is stored, to indicate to the receiver what type of data it is. These values currently range from 0n to 10n.
+
+    * If `getData` does not find a value that is from 0n to 10n, it checks whether OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX is set to true, and if it is, it throws an error.
+
+    * Otherwise, it returns `undefined`.
+
+* Similarly, the `storeData`'s object also puts a byte before storing the key of the object to indicate to the receiver what to do with the key of the object. These values currently range from 0n to 2n.
+
+    * If `getData` does not find a value that is from 0n to 2n, it checks whether OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE is set to true, and if it is, it throws an error.
+
+    * Otherwise, the key is set to `undefined`.
+
+* The way `stringLN` and `storeData`'s array and object storing works is that it stores the length of the data before the actual data. However, this means that a malicious sender could easily set the length to be extremely long and totally saturate your program.
+
+    * If it is out of bounds and OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS is set to true, an error is thrown.
+
+    * Otherwise, it breaks out of the loop and returns the data.
+
+        * Note that `storeData` is recursive and uses the same function to store array elements as it does regular data. This means that if this value is false, but OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX is true, it will still throw an error because the next value is undefined.
+
+* If `byte` tries accessing out of bounds, then it most likely means the sender is malicious.
+
+    * If OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS is set to true, an error is thrown.
+
+    * Otherwise, it returns 0n.
+
 # To-do list
 
 There are still lots of features to implement for this library, such as:
 
 * Floats
-* Writer specific error logging
-* Out of bounds check for Reader
+* Better documentation
+* More checks for error handling
 
 And many more!
 
 # Pull requests and issues
 
-Pull requests and issues are welcome. Changing this to make your own version is welcome, ***provided it is open source.***
+Pull requests and issues are welcome. Changing this to make your own version is welcome.
+
+You may use this library in a closed source program.

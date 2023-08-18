@@ -13,16 +13,38 @@ type OABDATA = number | bigint | string | any[] | {
 export declare class Reader {
     /** The index of the reader */
     at: number;
+    /** The buffer's length */
+    private _length;
     /** The reader's buffer */
-    buffer: Uint8Array;
+    private _buffer;
     /** The lookup */
     lookup: Lookup;
-    constructor(content: Uint8Array, lookupJSON?: RegularLookup);
+    /** Whether to throw an error when `getData`'s object retrivation fails. */
+    OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean;
+    /** Whether to throw an error when `getData` hits an unknown index. */
+    OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean;
+    /** Whether to throw an error when `stringLN` tries accessing out of bounds areas. */
+    OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS: boolean;
+    /** Whether to throw an error when `byte` tries accessing out of bounds areas. */
+    OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS: boolean;
+    constructor(content: Uint8Array, options?: {
+        lookupJSON?: RegularLookup;
+        OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean;
+        OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean;
+        OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS?: boolean;
+        OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS?: boolean;
+    });
+    /** The buffer's length */
+    get length(): number;
+    /** The reader's buffer */
+    get buffer(): Uint8Array;
+    /** Set the reader's buffer */
+    set buffer(newBuf: Uint8Array);
     /** Unsigned 8 bit integer */
     byte(): bigint;
     /** LEB128, variable length decoding of an unsigned integer */
     vu(): bigint;
-    /** Variable length encoding of a signed integer */
+    /** Variable length decoding of a signed integer */
     vi(): bigint;
     /** Null terminated string */
     string(): string;
@@ -30,27 +52,45 @@ export declare class Reader {
     stringLN(): string;
     /** Retrieves stuff like objects, arrays, and can even do it recursively */
     getData(): OABDATA;
-    /** Get the entire buffer */
-    out(): Uint8Array;
-    /** Get the rest of the reader data after the this.at */
+    /** Get the rest of the reader data after the this.at.
+     *
+     * Uses `Uint8Array.prototype.subarray`.
+    */
     rest(): Uint8Array;
 }
 /** For writing data to outgoing packets */
 export declare class Writer {
     /** How much data we have written */
-    length: number;
+    private _length;
     /** The buffer itself */
-    buffer: number[];
+    private _buffer;
     /** The reverse lookup */
     lookupReverse: ReverseLookup;
-    constructor(lookupJSON?: RegularLookup);
-    /** Does not actually store the full BigInt. */
+    /** Whether to log a warning if a lookup wasn't found */
+    OAB_WARN_LOOKUP_NOT_FOUND: boolean;
+    /** Whether to log a warning if trying to store an integer with `storeData` */
+    OAB_WARN_INT_NOT_SUPP: boolean;
+    constructor(options?: {
+        lookupJSON?: RegularLookup;
+        OAB_WARN_LOOKUP_NOT_FOUND?: boolean;
+        OAB_WARN_INT_NOT_SUPP?: boolean;
+    });
+    /** How much data we have written */
+    get length(): number;
+    /** The buffer itself */
+    get buffer(): number[];
+    /** Does not actually store the full BigInt.
+     * Clamps at 255.
+    */
     byte(num: bigint): void;
     /** LEB128, variable length encoding of an unsigned integer. Stores 7 bits of a number at a time, and uses the 8th bit to tell the reader to continue reading.
-     * DO NOT ATTEMPT to store a negative number with this. Javascript will crash.
+     * Attempting to store a negative integer will throw an error.
     */
     vu(num: bigint): this;
-    /** Variable length encoding of a signed integer */
+    /** Variable length encoding of a signed integer
+     *
+     * Stores the sign in a single bit.
+    */
     vi(num: bigint): this;
     /** Null terminated string. */
     string(str: string): this;
@@ -61,7 +101,5 @@ export declare class Writer {
     /** Get a Uint8Array of everything you wrote. */
     out(): Uint8Array;
 }
-export declare function OAB_WARN_LOOKUP_NOT_FOUND_SET(val: boolean): void;
-export declare function OAB_WARN_INT_NOT_SUPP_SET(val: boolean): void;
 export {};
 //# sourceMappingURL=main.d.ts.map

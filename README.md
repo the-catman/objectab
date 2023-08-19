@@ -2,17 +2,25 @@
 
 ObjectAB or OAB stands for Object to ArrayBuffer.
 
+THE VERSION v1.0.x IS DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
+
 # New stuff
 
-MAJOR UPDATE!
+* Major updates:
 
-Actually put error and out of bounds checking and handling.
+    * v1.0.x: Library created
 
-THE PREVIOUS VERSION IS DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
+    * v1.1.x: Actually put error and out of bounds checking and handling.
+
+* Minor updates (not permanent list):
+
+    * v1.1.2: Better documentation.
 
 # What is this library?
 
 This is a library for converting some javascript objects into a Uint8Array.
+
+However, I didn't originally come up with this.
 
 # So is it JSON?
 
@@ -56,7 +64,7 @@ Floats are totally not supported, due to the nature of bigints and this library.
 
 # Great! Where is the code?
 
-The below is javascript code, however, porting to typescript way better. Definitely do use typescript to avoid unintentional errors.
+The below is javascript code, however, porting to typescript is way better. Definitely do use typescript to avoid unintentional errors.
 
 ```js
 const { Reader, Writer } = require("objectab");
@@ -229,7 +237,7 @@ writer.storeData(1); // No warning pops up in console
 
 # Error handling
 
-Make sure to check out the optional parameters.
+Make sure to check out the [optional parameters](https://github.com/the-catman/objectab#optional-parameters) before reading this.
 
 * The way `storeData` works is that it puts a byte before the actual data is stored, to indicate to the receiver what type of data it is. These values currently range from 0n to 10n.
 
@@ -257,6 +265,69 @@ Make sure to check out the optional parameters.
 
     * Otherwise, it returns 0n.
 
+# Extra stuff
+
+* Reader properties
+    * Error properties
+        * `public Reader.OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean`
+        * `public Reader.OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean`
+        * `public Reader.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS: boolean`
+        * `public Reader.OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS: boolean`
+
+        * These have been [previously explained](https://github.com/the-catman/objectab#error-handling).
+
+    * Property `public Reader.lookup: Lookup`
+        * The lookup tables for the reader.
+
+    * Property `public Reader.at: number`
+        * The current index that the reader is reading from the buffer.
+
+    * Property `private Reader._length`
+        * The length of the buffer. Shouldn't be modified by yourself.
+
+    * Property `private Reader._buffer`
+        * The buffer itself. Shouldn't be modified by yourself.
+
+    * Getter `public get buffer(): Uint8Array`
+        * Returns `Reader._buffer`
+
+    * Setter `public set buffer(newBuf: Uint8Array)`
+        * You can set the reader's buffer with this function. It also updates the `Reader._length`.
+
+    * Getter `public get length(): number`
+        * You can get the length of the buffer with this function.
+
+    * Function `Reader.rest(void): Uint8Array`
+        * Get the rest of the reader data after this.at.
+
+* Writer properties
+    * Warning properties
+        * `public Writer.OAB_WARN_LOOKUP_NOT_FOUND: boolean`
+        * `public Writer.OAB_WARN_INT_NOT_SUPP: boolean`
+
+        * These have been [previously explained](https://github.com/the-catman/objectab#warning-logging).
+
+    * Property `public Writer.lookupReverse: ReverseLookup`
+        * The reversed lookup tables for the writer.
+
+    * Property `private Writer._at: number`
+        * The index of the writer. Shouldn't be modified by yourself.
+    
+    * Property `private Writer._buffer: number[]`
+        * The buffer itself (but for now, it's in Array form, due to the nature of Uint8Arrays not being dynamic)
+
+    * Getter `public get at(): number`
+        * Returns `Reader._at`
+    
+    * Getter `public get buffer(): number[]`
+        * Returns `Reader._buffer`
+
+    * Function `public Writer.out(): Uint8Array`
+        * Returns the buffer as a Uint8Array
+    
+    * Function `public Writer.flush(): Uint8Array`
+        * Returns the buffer as a Uint8Array and sets `_buffer` to an empty array and `_at` to 0. 
+
 # To-do list
 
 There are still lots of features to implement for this library, such as:
@@ -270,5 +341,3 @@ And many more!
 # Pull requests and issues
 
 Pull requests and issues are welcome. Changing this to make your own version is welcome.
-
-You may use this library in a closed source program.

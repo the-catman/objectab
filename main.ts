@@ -258,7 +258,7 @@ export class Reader
         }
     }
 
-    /** Get the rest of the reader data after the this.at.
+    /** Get the rest of the reader data after this.at.
      * 
      * Uses `Uint8Array.prototype.subarray`.
     */
@@ -272,7 +272,7 @@ export class Reader
 export class Writer
 {
     /** How much data we have written */
-    private _length: number;
+    private _at: number;
 
     /** The buffer itself */
     private _buffer: number[];
@@ -292,7 +292,7 @@ export class Writer
         OAB_WARN_INT_NOT_SUPP?: boolean
     })
     {
-        this._length = 0;
+        this._at = 0;
         this._buffer = [];
         this.lookupReverse = Object.fromEntries(Object.entries({...options?.lookupJSON /* spread operator handles undefined */}).map(a => a.reverse()));
         this.OAB_WARN_INT_NOT_SUPP = options?.OAB_WARN_INT_NOT_SUPP || false;
@@ -300,9 +300,9 @@ export class Writer
     }
 
     /** How much data we have written */
-    public get length(): number
+    public get at(): number
     {
-        return this._length;
+        return this._at;
     }
 
     /** The buffer itself */
@@ -316,7 +316,7 @@ export class Writer
     */
     public byte(num: bigint)
     {
-        this._buffer[this._length++] = Number(num > 255n ? 255 : num);
+        this._buffer[this._at++] = Number(num > 255n ? 255 : num);
     }
 
     /** LEB128, variable length encoding of an unsigned integer. Stores 7 bits of a number at a time, and uses the 8th bit to tell the reader to continue reading.
@@ -494,8 +494,17 @@ export class Writer
     }
 
     /** Get a Uint8Array of everything you wrote. */
-    out(): Uint8Array
+    public out(): Uint8Array
     {
         return new Uint8Array(this._buffer);
+    }
+
+    /** Set the buffer to an empty array and return the old buffer */
+    public flush(): Uint8Array
+    {
+        let out = new Uint8Array(this._buffer);
+        this._at = 0;
+        this._buffer = [];
+        return out;
     }
 }

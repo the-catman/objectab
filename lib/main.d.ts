@@ -52,7 +52,7 @@ export declare class Reader {
     stringLN(): string;
     /** Retrieves stuff like objects, arrays, and can even do it recursively */
     getData(): OABDATA;
-    /** Get the rest of the reader data after the this.at.
+    /** Get the rest of the reader data after this.at.
      *
      * Uses `Uint8Array.prototype.subarray`.
     */
@@ -61,7 +61,7 @@ export declare class Reader {
 /** For writing data to outgoing packets */
 export declare class Writer {
     /** How much data we have written */
-    private _length;
+    private _at;
     /** The buffer itself */
     private _buffer;
     /** The reverse lookup */
@@ -76,7 +76,7 @@ export declare class Writer {
         OAB_WARN_INT_NOT_SUPP?: boolean;
     });
     /** How much data we have written */
-    get length(): number;
+    get at(): number;
     /** The buffer itself */
     get buffer(): number[];
     /** Does not actually store the full BigInt.
@@ -100,6 +100,8 @@ export declare class Writer {
     storeData(val: OABDATA, storeStringAsNT?: boolean): this;
     /** Get a Uint8Array of everything you wrote. */
     out(): Uint8Array;
+    /** Set the buffer to an empty array and return the old buffer */
+    flush(): Uint8Array;
 }
 export {};
 //# sourceMappingURL=main.d.ts.map

@@ -15,6 +15,7 @@ THE VERSION v1.0.x IS DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
     * v1.2.x: Better error checking, and updated documentation. Updated the name of the error/warning options in Reader and Writer to be much better. (This means you have to update your code if you use these variables). Added support for +/- Infinity.
 
 * Minor updates (not permanent list):
+    * v1.2.1: Small changes to lookup in the background. Changed Writer and Reader optional parameter `lookupJSON` to `lookup`. Added an error logging option `OAB_READER_ERROR_ON_OOB_LOOKUP`.
 
 # What is this library?
 
@@ -168,16 +169,17 @@ As you can guess from the name, it determines whether or not all strings that ar
 Both `Reader` and `Writer` take an object (called options) as an optional parameter.
 
 The `Reader` may have the following for optional parameters:
-* lookupJSON: string[] = []
+* lookup: string[] = []
 * OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean = false
 * OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean = false
 * OAB_READER_ERROR_ON_OOB: boolean = false
 * OAB_READER_ERROR_ON_BYTE_OOB: boolean = false
 * OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean = false
 * OAB_READER_ERROR_ON_VU_HIT_EOB: boolean = false
+* OAB_READER_ERROR_ON_OOB_LOOKUP: boolean = false
 
 The `Writer` may have the following for optional parameters:
-* lookupJSON: string[] = []
+* lookup: string[] = []
 * OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean = false
 * OAB_WRITER_WARN_INT_NOT_SUPP: boolean = false
 
@@ -193,7 +195,7 @@ If `options.OAB_WRITER_WARN_LOOKUP_NOT_FOUND_SET` is set to true, then a warning
 const { Reader, Writer } = require("objectab");
 
 const writer_1 = new Writer({
-    lookupJSON: ["hello213213213213213213"]
+    lookup: ["hello213213213213213213"]
 });
 
 writer_1.storeData({"hello213213213213213213": 123n});
@@ -207,7 +209,7 @@ writer_2.storeData({"hello213213213213213213": 123n});
 console.log(writer_2.out().length); // 29
 
 console.log(new Reader(writer_1.out(), {
-    lookupJSON: ["hello213213213213213213"]
+    lookup: ["hello213213213213213213"]
 }).getData()); // {"hello213213213213213213": 123n}
 
 console.log(new Reader(writer_2.out()).getData()); // {"hello213213213213213213": 123n}
@@ -294,6 +296,11 @@ Make sure to check out the [optional parameters](#optional-parameters) before re
 
     * Otherwise, it continues as normal.
 
+* If `Reader.getData`'s object retrieving fails to get a lookup, that means that either the sender is malicious, or the lookup isn't properly shared on both the receiver and sender.
+    * If `OAB_READER_ERROR_ON_OOB_LOOKUP` is set to true, an error is thrown.
+
+    * Otherwise, it sets the key to `undefined`.
+
 Example code:
 
 ```js
@@ -356,6 +363,7 @@ console.log(reader_2.getData()); // undefined
         * `public Reader.OAB_READER_ERROR_ON_BYTE_OOB: boolean`
         * `public Reader.OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean`
         * `public Reader.OAB_READER_ERROR_ON_VU_HIT_EOB: boolean`
+        * `public Reader.OAB_READER_ERROR_ON_OOB_LOOKUP: boolean`
 
         * These have been [previously explained](#error-handling).
 
@@ -761,6 +769,8 @@ When storeData encounters `undefined`, it appends `7`.
 
 # storeData: null
 
+In reality, null is an object, however, since the object is so crowded, it'd get confusing, so I just put this here.
+
 When storeData encounters `null`, it appends `8`.
 
 # Example code for null, undefined, boolean, NaN, +Infinity, -Infinity
@@ -790,6 +800,8 @@ console.log(reader.getData()); // -Infinity
 ```
 
 # storeData: Arrays
+
+In reality, arrays are objects, however, since the object is so crowded, it'd get confusing, so I just put this here.
 
 When storeData encounters an array, it appends `3` and calls `Writer.vu` with the length of the array. Then, it calls `Writer.storeData` for each of the elements to store them.
 
@@ -875,7 +887,7 @@ Example code:
 const { Reader, Writer } = require("objectab");
 
 const writer = new Writer({
-    lookupJSON: ["hello"]
+    lookup: ["hello"]
 });
 
 writer.storeData({hello: {
@@ -907,7 +919,7 @@ console.log(writer.out()); /* Uint8Array(12) [ 4, 1, 0, 0, 4, 1, 1, 104, 105, 0,
 */
 
 const reader = new Reader(writer.out(), {
-    lookupJSON: ["hello"]
+    lookup: ["hello"]
 });
 
 console.log(reader.getData()); // { hello: { hi: 1n } }

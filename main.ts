@@ -1,6 +1,4 @@
-type RegularLookup = string[];
-interface Lookup {[key: number]: string};
-interface ReverseLookup {[key: string]: string};
+type Lookup = string[];
 
 // Lookup is shared between the receiver and the sender, and it's only use is for objects' keys.
 // When both the receiver and the sender share the lookup, we don't need to send the object key as a string.
@@ -37,25 +35,29 @@ export class Reader
     /** Whether to throw an error when `byte` tries accessing out of bounds areas. */
     public OAB_READER_ERROR_ON_BYTE_OOB: boolean;
 
-    /** Whether to throw an error when `string` hits the end of the buffer before hitting a null character */
+    /** Whether to throw an error when `string` hits the end of the buffer before hitting a null character. */
     public OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean;
 
-    /** Whether to throw an error when `vu` hits the end of the buffer before hitting end of VU */
+    /** Whether to throw an error when `vu` hits the end of the buffer before hitting end of vu. */
     public OAB_READER_ERROR_ON_VU_HIT_EOB: boolean;
 
+    /** Whether to throw an error when `getData`'s object retrieving fails to get a lookup. */
+    public OAB_READER_ERROR_ON_OOB_LOOKUP: boolean;
+
     constructor(content: Uint8Array, options?: {
-        lookupJSON?: RegularLookup
+        lookup?: Lookup
         OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean
         OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean
         OAB_READER_ERROR_ON_OOB?: boolean
         OAB_READER_ERROR_ON_BYTE_OOB?: boolean
         OAB_READER_ERROR_ON_STRING_HIT_EOB?: boolean
         OAB_READER_ERROR_ON_VU_HIT_EOB?: boolean
+        OAB_READER_ERROR_ON_OOB_LOOKUP?: boolean
     })
     {
         this.at = 0;
         this._buffer = content;
-        this.lookup = {...options?.lookupJSON};
+        this.lookup = options?.lookup || [];
         this._length = this._buffer.length;
         this.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE = options?.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE || false;
         this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX = options?.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX || false;
@@ -63,6 +65,7 @@ export class Reader
         this.OAB_READER_ERROR_ON_BYTE_OOB = options?.OAB_READER_ERROR_ON_BYTE_OOB || false;
         this.OAB_READER_ERROR_ON_STRING_HIT_EOB = options?.OAB_READER_ERROR_ON_STRING_HIT_EOB || false;
         this.OAB_READER_ERROR_ON_VU_HIT_EOB = options?.OAB_READER_ERROR_ON_VU_HIT_EOB || false;
+        this.OAB_READER_ERROR_ON_OOB_LOOKUP = options?.OAB_READER_ERROR_ON_OOB_LOOKUP || false;
     }
 
     /** The buffer's length */
@@ -215,6 +218,8 @@ export class Reader
                         {
                             case 0n:
                                 key = this.lookup[Number(this.vu())];
+                                if(key === undefined) // Something has gone terribly wrong.
+                                    if(this.OAB_READER_ERROR_ON_OOB_LOOKUP) throw new Error(`\`getData\`'s object key strong looked up a value out of bounds!`)
                                 break;
                             case 1n:
                                 key = this.string();
@@ -310,7 +315,7 @@ export class Writer
     private _buffer: number[];
 
     /** The reverse lookup */
-    public lookupReverse: ReverseLookup;
+    public lookup: Lookup;
 
     /** Whether to log a warning if a lookup wasn't found */
     public OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean;
@@ -319,14 +324,14 @@ export class Writer
     public OAB_WRITER_WARN_INT_NOT_SUPP: boolean;
 
     constructor(options?: {
-        lookupJSON?: RegularLookup
+        lookup?: Lookup
         OAB_WRITER_WARN_LOOKUP_NOT_FOUND?: boolean
         OAB_WRITER_WARN_INT_NOT_SUPP?: boolean
     })
     {
         this._at = 0;
         this._buffer = [];
-        this.lookupReverse = Object.fromEntries(Object.entries({...options?.lookupJSON /* spread operator handles undefined */}).map(a => a.reverse()));
+        this.lookup = options?.lookup || [];
         this.OAB_WRITER_WARN_INT_NOT_SUPP = options?.OAB_WRITER_WARN_INT_NOT_SUPP || false;
         this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = options?.OAB_WRITER_WARN_LOOKUP_NOT_FOUND || false;
     }
@@ -490,22 +495,22 @@ export class Writer
                     this.vu(BigInt(valKeys.length)); // Number of properties in the object
                     for(let value of valKeys)
                     {
-                        let tableEnc = this.lookupReverse[value];
-                        if(tableEnc !== undefined) // If the lookup table found a lookup value,
+                        let tableEnc = this.lookup.indexOf(value);
+                        if(tableEnc !== -1) // If the lookup table found a lookup value,
                         {
                             this.byte(0n); // tell the receiver that a value was found.
                             this.vu(BigInt(tableEnc));
                         } 
-                        else // If it didn't, then put the original property back, and tell the receiver not to look it up,
+                        else // If it didn't, then encode the original property, and tell the receiver not to look it up, and the fact that it's either
                         {
                             if(storeStringAsNT)
                             {
-                                this.byte(1n); // and the fact that it's stored as a NT string,
+                                this.byte(1n); // an NT string,
                                 this.string(value);
                             }
                             else
                             {
-                                this.byte(2n); // or the fact that it's stored as a LN string
+                                this.byte(2n); // or an LN string.
                                 this.stringLN(value);
                             }
                             if(this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND) console.warn(`Found a key that wasn't in the lookup table! ${value}.`); // And optionally log a warning.

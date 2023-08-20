@@ -8,7 +8,7 @@ interface ReverseLookup {[key: string]: string};
 // so instead of a string, we put a number which corresponds to the lookup. This saves a lot of space.
 
 /** Unfortunately, typescript does not have any real definition for NaN, I was forced to include number here, even though the only number is ironically.. not a number */
-type OABDATA = number | bigint | string | any[] | {[key: string]: OABDATA} | boolean | null | undefined;
+type OABDATA = number | bigint | string | OABDATA[] | {[key: string]: OABDATA} | boolean | null | undefined;
 
 /** For reading data from incoming packets */
 export class Reader
@@ -26,33 +26,43 @@ export class Reader
     public lookup: Lookup;
 
     /** Whether to throw an error when `getData`'s object retrivation fails. */
-    public OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean;
+    public OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean;
 
     /** Whether to throw an error when `getData` hits an unknown index. */
-    public OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean;
+    public OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean;
 
     /** Whether to throw an error when `stringLN` tries accessing out of bounds areas. */
-    public OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS: boolean;
+    public OAB_READER_ERROR_ON_OOB: boolean;
 
     /** Whether to throw an error when `byte` tries accessing out of bounds areas. */
-    public OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS: boolean;
+    public OAB_READER_ERROR_ON_BYTE_OOB: boolean;
+
+    /** Whether to throw an error when `string` hits the end of the buffer before hitting a null character */
+    public OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean;
+
+    /** Whether to throw an error when `vu` hits the end of the buffer before hitting end of VU */
+    public OAB_READER_ERROR_ON_VU_HIT_EOB: boolean;
 
     constructor(content: Uint8Array, options?: {
         lookupJSON?: RegularLookup
-        OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean
-        OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean
-        OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS?: boolean
-        OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS?: boolean
+        OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean
+        OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean
+        OAB_READER_ERROR_ON_OOB?: boolean
+        OAB_READER_ERROR_ON_BYTE_OOB?: boolean
+        OAB_READER_ERROR_ON_STRING_HIT_EOB?: boolean
+        OAB_READER_ERROR_ON_VU_HIT_EOB?: boolean
     })
     {
         this.at = 0;
         this._buffer = content;
         this.lookup = {...options?.lookupJSON};
         this._length = this._buffer.length;
-        this.OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE = options?.OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE || false;
-        this.OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX = options?.OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX || false;
-        this.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS = options?.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS || false;
-        this.OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS = options?.OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS || false;
+        this.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE = options?.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE || false;
+        this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX = options?.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX || false;
+        this.OAB_READER_ERROR_ON_OOB = options?.OAB_READER_ERROR_ON_OOB || false;
+        this.OAB_READER_ERROR_ON_BYTE_OOB = options?.OAB_READER_ERROR_ON_BYTE_OOB || false;
+        this.OAB_READER_ERROR_ON_STRING_HIT_EOB = options?.OAB_READER_ERROR_ON_STRING_HIT_EOB || false;
+        this.OAB_READER_ERROR_ON_VU_HIT_EOB = options?.OAB_READER_ERROR_ON_VU_HIT_EOB || false;
     }
 
     /** The buffer's length */
@@ -78,7 +88,7 @@ export class Reader
     public byte(): bigint
     {
         let byte = this._buffer[this.at++];
-        if((byte === undefined) && this.OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS) throw new Error("`byte` tried accessing out of bounds!");
+        if((byte === undefined) && this.OAB_READER_ERROR_ON_BYTE_OOB) throw new Error("`byte` tried accessing out of bounds!");
         return BigInt(byte || 0);
     }
 
@@ -87,8 +97,14 @@ export class Reader
     {
         let out = 0n;
         let at = 0n;
-        while (this._buffer[this.at] & 128)
+        while(true)
         {
+            if(!(this._buffer[this.at] & 128)) break;
+            if(this._buffer[this.at + 1] === undefined)
+            {
+                if(this.OAB_READER_ERROR_ON_VU_HIT_EOB) throw new Error("`vu` hit End of Buffer before vu ends!");
+                //break;
+            }
             out |= (this.byte() & 127n) << at;
             at += 7n;
         }
@@ -109,8 +125,14 @@ export class Reader
     public string(): string
     {
         let final = "";
-        while(this._buffer[this.at])
+        while(true)
         {
+            if(this._buffer[this.at] === 0) break;
+            if(this._buffer[this.at] === undefined)
+            {
+                if(this.OAB_READER_ERROR_ON_STRING_HIT_EOB) throw new Error("`string` hit End of Buffer before hitting null!");
+                break;
+            }
             final += String.fromCharCode(Number(this.vu()));
         }
         this.at++;
@@ -127,9 +149,9 @@ export class Reader
             if(this._buffer[this.at] !== undefined) final += String.fromCharCode(Number(this.vu()));
             else
             {
-                if(this.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS)
+                if(this.OAB_READER_ERROR_ON_OOB)
                 {
-                    throw new Error(`stringLN tried to access out of bounds! String length: ${strLen}, buffer length: ${this._length}, buffer at: ${this.at}`);
+                    throw new Error(`\`stringLN\` tried to access out of bounds! String length: ${strLen}, buffer length: ${this._length}, buffer at: ${this.at}`);
                 }
                 break;
             }
@@ -138,7 +160,7 @@ export class Reader
     }
 
     /** Retrieves stuff like objects, arrays, and can even do it recursively */
-    getData(): OABDATA // Further explained in the Writer
+    public getData(): OABDATA // Further explained in the Writer
     {
         let byte = this.byte();
         switch (byte)
@@ -148,7 +170,7 @@ export class Reader
                 return this.string();
             }
 
-            case 1n: // Negative integers
+            case 1n: // Negative BigInts
             {
                 return -this.vu();
             }
@@ -167,7 +189,7 @@ export class Reader
                     if(this._buffer[this.at] !== undefined) arr.push(this.getData());
                     else
                     {
-                        if(this.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS)
+                        if(this.OAB_READER_ERROR_ON_OOB)
                         {
                             throw new Error(`\`getData\`'s array storing tried to access out of bounds! Array length: ${arrLen}, buffer length: ${this._length}, buffer at: ${this.at}`);
                         }
@@ -202,14 +224,14 @@ export class Reader
                                 break;
                             default: // Something has gone terribly wrong.
                                 key = undefined;
-                                if(this.OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE) throw new Error(`Unexpected byte! Available options: 0n, 1n, 2n. Instead got ${byte}`);
+                                if(this.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE) throw new Error(`\`getData\`'s object key storing got an unexpected byte! Available options: 0n, 1n, 2n. Instead got ${byte}`);
                                 break;
                         }
                         final[key as any] = this.getData();
                     }
                     else
                     {
-                        if(this.OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS)
+                        if(this.OAB_READER_ERROR_ON_OOB)
                         {
                             throw new Error(`\`getData\`'s object storing tried to access out of bounds! Object length: ${objKeyLen}, buffer length: ${this._length}, buffer at: ${this.at}`);
                         }
@@ -245,14 +267,24 @@ export class Reader
                 return this.stringLN();
             }
 
-            case 10n: // Positive integers
+            case 10n: // Positive BigInts
             {
                 return this.vu();
             }
 
+            case 11n: // Positive Infinity
+            {
+                return Infinity;
+            }
+
+            case 12n: // Negative Infinity
+            {
+                return -Infinity;
+            }
+
             default: // Something has gone terribly wrong.
             {
-                if(this.OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX) throw new Error(`Unexpected index! Expected 0n, 1n, 2n... 10n, instead got ${byte}`);
+                if(this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX) throw new Error(`Unexpected index! Expected 0n, 1n, 2n... 10n, instead got ${byte}`);
                 return undefined;
             }
         }
@@ -281,22 +313,22 @@ export class Writer
     public lookupReverse: ReverseLookup;
 
     /** Whether to log a warning if a lookup wasn't found */
-    public OAB_WARN_LOOKUP_NOT_FOUND: boolean;
+    public OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean;
 
     /** Whether to log a warning if trying to store an integer with `storeData` */
-    public OAB_WARN_INT_NOT_SUPP: boolean;
+    public OAB_WRITER_WARN_INT_NOT_SUPP: boolean;
 
     constructor(options?: {
         lookupJSON?: RegularLookup
-        OAB_WARN_LOOKUP_NOT_FOUND?: boolean
-        OAB_WARN_INT_NOT_SUPP?: boolean
+        OAB_WRITER_WARN_LOOKUP_NOT_FOUND?: boolean
+        OAB_WRITER_WARN_INT_NOT_SUPP?: boolean
     })
     {
         this._at = 0;
         this._buffer = [];
         this.lookupReverse = Object.fromEntries(Object.entries({...options?.lookupJSON /* spread operator handles undefined */}).map(a => a.reverse()));
-        this.OAB_WARN_INT_NOT_SUPP = options?.OAB_WARN_INT_NOT_SUPP || false;
-        this.OAB_WARN_LOOKUP_NOT_FOUND = options?.OAB_WARN_LOOKUP_NOT_FOUND || false;
+        this.OAB_WRITER_WARN_INT_NOT_SUPP = options?.OAB_WRITER_WARN_INT_NOT_SUPP || false;
+        this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = options?.OAB_WRITER_WARN_LOOKUP_NOT_FOUND || false;
     }
 
     /** How much data we have written */
@@ -317,6 +349,7 @@ export class Writer
     public byte(num: bigint)
     {
         this._buffer[this._at++] = Number(num > 255n ? 255 : num);
+        return this;
     }
 
     /** LEB128, variable length encoding of an unsigned integer. Stores 7 bits of a number at a time, and uses the 8th bit to tell the reader to continue reading.
@@ -399,8 +432,16 @@ export class Writer
                 }
                 else if(Number.isInteger(val)) // Integer
                 {
-                    this.storeData(BigInt(val));
-                    if(this.OAB_WARN_INT_NOT_SUPP) console.warn("Warning: Regular integers are not supported. However, it was automatically converted to a bigint.");
+                    this.storeData(BigInt(val), storeStringAsNT);
+                    if(this.OAB_WRITER_WARN_INT_NOT_SUPP) console.warn("Warning: Regular integers are not supported. However, it was automatically converted to a bigint.");
+                }
+                else if(val === Infinity) // Positive Infinity
+                {
+                    this.byte(11n);
+                }
+                else if(val === -Infinity) // Negative Infinity
+                {
+                    this.byte(12n);
                 }
                 else // Float
                 {
@@ -447,10 +488,8 @@ export class Writer
                     let valKeys = Object.keys(val);
                     this.byte(4n);
                     this.vu(BigInt(valKeys.length)); // Number of properties in the object
-                    for(let i in valKeys)
+                    for(let value of valKeys)
                     {
-                        /** The key of the object we need to store */
-                        let value: string = valKeys[i];
                         let tableEnc = this.lookupReverse[value];
                         if(tableEnc !== undefined) // If the lookup table found a lookup value,
                         {
@@ -469,7 +508,7 @@ export class Writer
                                 this.byte(2n); // or the fact that it's stored as a LN string
                                 this.stringLN(value);
                             }
-                            if(this.OAB_WARN_LOOKUP_NOT_FOUND) console.warn(`Found a key that wasn't in the lookup table! ${value}.`); // And optionally log a warning.
+                            if(this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND) console.warn(`Found a key that wasn't in the lookup table! ${value}.`); // And optionally log a warning.
                         }
                         this.storeData(val[value]);
                     }

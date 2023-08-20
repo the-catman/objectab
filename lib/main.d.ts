@@ -6,7 +6,7 @@ interface ReverseLookup {
     [key: string]: string;
 }
 /** Unfortunately, typescript does not have any real definition for NaN, I was forced to include number here, even though the only number is ironically.. not a number */
-type OABDATA = number | bigint | string | any[] | {
+type OABDATA = number | bigint | string | OABDATA[] | {
     [key: string]: OABDATA;
 } | boolean | null | undefined;
 /** For reading data from incoming packets */
@@ -20,19 +20,25 @@ export declare class Reader {
     /** The lookup */
     lookup: Lookup;
     /** Whether to throw an error when `getData`'s object retrivation fails. */
-    OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean;
+    OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean;
     /** Whether to throw an error when `getData` hits an unknown index. */
-    OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean;
+    OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean;
     /** Whether to throw an error when `stringLN` tries accessing out of bounds areas. */
-    OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS: boolean;
+    OAB_READER_ERROR_ON_OOB: boolean;
     /** Whether to throw an error when `byte` tries accessing out of bounds areas. */
-    OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS: boolean;
+    OAB_READER_ERROR_ON_BYTE_OOB: boolean;
+    /** Whether to throw an error when `string` hits the end of the buffer before hitting a null character */
+    OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean;
+    /** Whether to throw an error when `vu` hits the end of the buffer before hitting end of VU */
+    OAB_READER_ERROR_ON_VU_HIT_EOB: boolean;
     constructor(content: Uint8Array, options?: {
         lookupJSON?: RegularLookup;
-        OAB_THROW_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean;
-        OAB_THROW_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean;
-        OAB_THROW_ERROR_ON_ACCESSING_OUT_OF_BOUNDS?: boolean;
-        OAB_THROW_ERROR_ON_BYTE_OUT_OF_BOUNDS?: boolean;
+        OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE?: boolean;
+        OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX?: boolean;
+        OAB_READER_ERROR_ON_OOB?: boolean;
+        OAB_READER_ERROR_ON_BYTE_OOB?: boolean;
+        OAB_READER_ERROR_ON_STRING_HIT_EOB?: boolean;
+        OAB_READER_ERROR_ON_VU_HIT_EOB?: boolean;
     });
     /** The buffer's length */
     get length(): number;
@@ -67,13 +73,13 @@ export declare class Writer {
     /** The reverse lookup */
     lookupReverse: ReverseLookup;
     /** Whether to log a warning if a lookup wasn't found */
-    OAB_WARN_LOOKUP_NOT_FOUND: boolean;
+    OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean;
     /** Whether to log a warning if trying to store an integer with `storeData` */
-    OAB_WARN_INT_NOT_SUPP: boolean;
+    OAB_WRITER_WARN_INT_NOT_SUPP: boolean;
     constructor(options?: {
         lookupJSON?: RegularLookup;
-        OAB_WARN_LOOKUP_NOT_FOUND?: boolean;
-        OAB_WARN_INT_NOT_SUPP?: boolean;
+        OAB_WRITER_WARN_LOOKUP_NOT_FOUND?: boolean;
+        OAB_WRITER_WARN_INT_NOT_SUPP?: boolean;
     });
     /** How much data we have written */
     get at(): number;
@@ -82,7 +88,7 @@ export declare class Writer {
     /** Does not actually store the full BigInt.
      * Clamps at 255.
     */
-    byte(num: bigint): void;
+    byte(num: bigint): this;
     /** LEB128, variable length encoding of an unsigned integer. Stores 7 bits of a number at a time, and uses the 8th bit to tell the reader to continue reading.
      * Attempting to store a negative integer will throw an error.
     */

@@ -2,75 +2,73 @@
 
 ObjectAB or OAB stands for Object to ArrayBuffer.
 
-THE VERSION v1.0.x IS DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
+THE VERSIONS BELOW v1.2.0 ARE DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
 
 # New stuff
 
 * Major updates:
 
-    * v1.0.x: Library created
+    * v1.0.0: Library created.
+ 
+    * v1.1.0: Actually put error and out of bounds checking and handling. Updated documentation.
 
-    * v1.1.x: Actually put error and out of bounds checking and handling.
+    * v1.2.0: Better error checking. Updated the name of the error/warning options in Reader and Writer to be much better. (This means you have to update your code if you use these variables). Added support for +/- Infinity. Updated documentation.
 
-    * v1.2.x: Better error checking, and updated documentation. Updated the name of the error/warning options in Reader and Writer to be much better. (This means you have to update your code if you use these variables). Added support for +/- Infinity.
+    * v1.3.0: Added floats, moved optional parameter of `storeData` to the constructor. Updated documentation.
 
 * Minor updates (not permanent list):
-    * v1.2.1: Small changes to lookup in the background. Changed Writer and Reader optional parameter `lookupJSON` to `lookup`. Added an error logging option `OAB_READER_ERROR_ON_OOB_LOOKUP`.
 
 # What is this library?
 
-This is a library for converting some javascript objects into a Uint8Array.
+* This is a library for converting some javascript objects into a Uint8Array.
 
-However, I didn't originally come up with this.
+    * However, I didn't originally come up with this.
 
 # So is it JSON?
 
-Not really. JSON is way more versatile, less buggy and less prone to errors. However, it is quite slow and the output is very large.
+* Not really. JSON is way more versatile, readable, less buggy, and less prone to errors.
+    * However, it is quite slow and the output is very large.
 
-It is also not natively a bytecode encoder, so you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array, which is even slower.
+* JSON is also not natively a text to bytecode encoder.
+    * This means that you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array, which is quite slow.
 
 # Is it efficient?
 
-It probably is way more efficient than JSON.
+* It probably is way more efficient than JSON.
 
 # Is it reliable?
 
-I have tested this, and it most likely is reliable.
+* I have tested this, and it most likely is reliable.
 
-If you do find an edge case that breaks this, please, by all means, open up a ticket. I'll try and solve the issue ASAP.
+    * If you do find an edge case that breaks this, please, by all means, open up a ticket. I'll try and solve the issue ASAP.
 
 # Is it buggy?
 
-Given the extremely sensitive nature of this, ***yes***.
+* Given the extremely sensitive nature of this, ***yes***.
 
-If even one byte is malformed, there is a very high possibility of this breaking.
+    * If even one byte is malformed, there is a very high possibility of this breaking.
 
 # Are there any things I should know before using this?
 
-I have covered most things you should know beforehand.
+* One of the most important things is the lookup, if you're storing objects.
 
-However, one of the most important things is the lookup, if you're storing objects.
+    * The lookup has to be ***exactly*** the same on both the sender and receiver.
 
-The lookup has to be ***exactly*** the same on both the sender and receiver.
+* You can only retrieve objects in the same order as you stored them.
 
-Another thing is that you can only retrieve objects in the same order as you stored them.
+* You *can* (but really shouldn't) store Integers. Just convert it to bigint.
 
-You *can* (but really shouldn't) store Integers with the `storeData` function.
+    * Integers and Floats take up a lot of space, as seen [here](#storedata-number).
 
-This library mainly uses BigInts, meaning other functions do not support Integers.
+# Example
 
-If you attempt to forcefully store integers outsite of `storeData`, I don't know what will happen (nor do I care, since I haven't tested what would happen if ambitious programmers decided to break my library).
+* The below is javascript code, however, porting to typescript is way better.
+    * Really, by now everyone should be using typescript.
 
-Floats are totally not supported, due to the nature of bigints and this library.
-
-# Great! Where is the code?
-
-The below is javascript code, however, porting to typescript is way better. Definitely do use typescript to avoid unintentional errors.
+Basic example:
 
 ```js
 const { Reader, Writer } = require("objectab");
-
-// Let's start out with basic data types, then we can move to more complex ones.
 
 const writer = new Writer();
 
@@ -85,11 +83,15 @@ writer.byte(123n);
 // Attempting to store a negative number will cause this to go into an infinite loop and crash, so... don't do that.
 writer.vu(1093021321n);
 
-// This is a variable length signed integer. Basically, this is vu but it stores the sign in the least significant bit,
-// which means you can store negative numbers.
-// If you don't know what that means, don't worry about it.
+// This is a variable length signed integer. 
 // You can store positive numbers, it's just not very space efficient since it uses 1 extra bit to store the sign
 writer.vi(-123032321n);
+
+// This is a float.
+// Quite space demanding.
+// If you can, avoid this.
+// Otherwise, you can use it no problem.
+writer.float(0.123892183);
 
 // This is a null terminated string (NT string). This is an okay way of storing data, but trying to include a null character anywhere in the string breaks it.
 writer.string("Hello!");
@@ -108,43 +110,40 @@ console.log(reader.vu()); // 1093021321n
 
 console.log(reader.vi()); // -123032321n
 
+console.log(reader.float()); // 0.12389218062162399
+
 console.log(reader.string()); // "Hello!"
 
 console.log(reader.stringLN()); // "Hello from LENGTH!"
 
 ```
 
-Now to move onto why you're probably here: Object storing.
+# Object storing
 
-This library can store the following:
+* This library can store the following:
 
-NaN
+    * `NaN`
+    * `undefined`
+    * `null`
+    * `true`
+    * `false`
+    * `+Infinity`
+    * `-Infinity`
+    * BigInts
+    * Null terminated strings
+    * Length based strings
+    * Objects
+    * Arrays
+    * Integers
+    * Floats
 
-undefined
+    * If a value is passed that does not match one of these data types, an error is thrown.
 
-null
+* Note that if your object has a number as a key, it will get converted to a string. This is a limitation of javascript, not the library.
 
-true
+    * See [this](https://stackoverflow.com/questions/3633362/is-there-any-way-to-use-a-numeric-type-as-an-object-key) and [this](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys).
 
-false
-
-positive integers
-
-negative integers
-
-null terminated strings
-
-length based strings
-
-objects
-
-arrays
-
-If a value is passed that does not match one of these data types, an error is thrown. (This includes floats, which aren't supported in this library).
-
-Note that if your object has a number as a key, it will get converted to a string. This is a limitation of javascript, not the library.
-
-See [this](https://stackoverflow.com/questions/3633362/is-there-any-way-to-use-a-numeric-type-as-an-object-key) and [this](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys).
+Example code:
 
 ```js
 const { Reader, Writer } = require("objectab");
@@ -159,37 +158,44 @@ console.log(reader.getData()); // [1n, 2n, 3n, [{hello: 123n}, "hello hello 1234
 
 ```
 
-Also, `storeData` takes an optional boolean parameter called `storeStringAsNT`, defaulted to true.
+# Reader constructor
 
-As you can guess from the name, it determines whether or not all strings that are found in `storeData` should be stored as "Null Terminated" or "Length Based" strings.
-    * Note that this also applies to storing object keys.
+* `Reader constructor(content: Uint8Array, options?: { ... })`
+    * The reader needs a buffer as a non-optional parameter. The Buffer is a Uint8Array.
 
-# Optional parameters
+    * The `Reader` may have the following for `options`:
+        * [Lookups:](#the-lookup)
+            * lookup: string[] = []
 
-Both `Reader` and `Writer` take an object (called options) as an optional parameter.
+        * [Error handling:](#reader-error-handling)
+            * OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean = false
+            * OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean = false
+            * OAB_READER_ERROR_ON_OOB: boolean = false
+            * OAB_READER_ERROR_ON_BYTE_OOB: boolean = false
+            * OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean = false
+            * OAB_READER_ERROR_ON_VU_HIT_EOB: boolean = false
+            * OAB_READER_ERROR_ON_OOB_LOOKUP: boolean = false
 
-The `Reader` may have the following for optional parameters:
-* lookup: string[] = []
-* OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: boolean = false
-* OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean = false
-* OAB_READER_ERROR_ON_OOB: boolean = false
-* OAB_READER_ERROR_ON_BYTE_OOB: boolean = false
-* OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean = false
-* OAB_READER_ERROR_ON_VU_HIT_EOB: boolean = false
-* OAB_READER_ERROR_ON_OOB_LOOKUP: boolean = false
+# Writer constructor
 
-The `Writer` may have the following for optional parameters:
-* lookup: string[] = []
-* OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean = false
-* OAB_WRITER_WARN_INT_NOT_SUPP: boolean = false
+* `Writer constructor(options?: { ... })`
+
+    * The `Writer` may have the following for `options`:
+        * [Lookups:](#the-lookup)
+            * lookup: string[] = []
+
+        * [Warning logging:](#writer-warning-logging)
+            * OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean = false
+
+        * [`storeData` options:](#writer-storedata-options)
+        * OAB_WRITER_STORE_STRING_AS_NT: boolean = true
+        * OAB_WRITER_STORE_FLOAT_AS_32: boolean = true
 
 # The lookup
 
-Both `Reader` and `Writer` share an optional parameter: the lookup table, which has to be the same between the receiver and sender.
+* Both `Reader` and `Writer` share an optional parameter: the lookup table, which has to be the same between the receiver and sender.
 
-It is for objects, so instead of writing the full key of the object as a string, we can just refer to the lookup table to make our task much more efficient.
-
-If `options.OAB_WRITER_WARN_LOOKUP_NOT_FOUND_SET` is set to true, then a warning will be shown when a Writer tries to write and the object's value is not found.
+    * It's purpose is for efficient storage of objects, so instead of writing the full key of the object as a string, we can just refer to the lookup table to make our task much more efficient.
 
 ```js
 const { Reader, Writer } = require("objectab");
@@ -216,59 +222,19 @@ console.log(new Reader(writer_2.out()).getData()); // {"hello213213213213213213"
 
 ```
 
-# Warning logging
+# Reader error handling
 
-Make sure to check out the [optional parameters](#optional-parameters) before reading this.
+Make sure to check out the [parameters of the `Reader` constructor](#reader-constructor) before reading this.
 
-* If the Writer fails to find a value of an object's key in the lookup table, and `OAB_WRITER_WARN_LOOKUP_NOT_FOUND` is true, a warning is logged.
-    * The key is set as a string, regardless of whether or not a warning was logged.
-        * The type of string depends on the optional parameter `storeStringAsNT`, defaulted to true.
+* The way `Writer.storeData` works is that it puts a byte before the actual data is stored, to indicate to the receiver what type of data it is.
 
-    * This can be useful if you want to see which keys you missed.
-
-* If the Writer's `storeData` function is called and has an integer as a form of data, and `OAB_WRITER_WARN_INT_NOT_SUPP` is true, a warning is logged.
-    * The integer gets converted to a bigint, regardless of whether or not a warning was logged.
-
-Example code:
-
-```js
-const { Reader, Writer } = require("objectab");
-
-const writer = new Writer({
-    OAB_WRITER_WARN_LOOKUP_NOT_FOUND: false,
-    OAB_WRITER_WARN_INT_NOT_SUPP: false
-});
-
-writer.storeData({hello: "hi"}); // No warning pops up in console
-writer.storeData(1); // No warning pops up in console
-
-writer.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = true;
-writer.OAB_WRITER_WARN_INT_NOT_SUPP = true;
-
-writer.storeData({hello: "hi"}); // Warning pops up: Found a key that wasn't in the lookup table! hello.
-writer.storeData(1); // Warning pops up: Warning: Regular integers are not supported. However, it was automatically converted to a bigint.
-
-writer.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = false;
-writer.OAB_WRITER_WARN_INT_NOT_SUPP = false;
-
-writer.storeData({hello: "hi"}); // No warning pops up in console
-writer.storeData(1); // No warning pops up in console
-
-```
-
-# Error handling
-
-Make sure to check out the [optional parameters](#optional-parameters) before reading this.
-
-* The way `Writer.storeData` works is that it puts a byte before the actual data is stored, to indicate to the receiver what type of data it is. These values currently range from 0n to 10n.
-
-    * If `Reader.getData` does not find a value that is from 0n to 10n, it checks whether `OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX` is set to true, and if it is, it throws an error.
+    * If `Reader.getData` does not find a value that is from these bytes, it checks whether `OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX` is set to true, and if it is, it throws an error.
 
     * Otherwise, it returns `undefined`.
 
-* Similarly, `Writer.storeData`'s object also puts a byte before storing the key of the object to indicate to the receiver what to do with the key of the object. These values currently are 0n and 1n.
+* Similarly, `Writer.storeData`'s object also puts a byte before storing the key of the object to indicate to the receiver what to do with the key of the object.
 
-    * If `Reader.getData` does not find a value that is either 0n or 1n, it checks whether `OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE` is set to true, and if it is, it throws an error.
+    * If `Reader.getData` does not find a value that is from these bytes, it checks whether `OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE` is set to true, and if it is, it throws an error.
 
     * Otherwise, the key is set to `undefined`.
 
@@ -309,7 +275,7 @@ const { Reader, Writer } = require("objectab");
 
 const writer = new Writer();
 
-writer.vu(11n); // `storeData`'s indexes are only from 0n -> 10n
+writer.vu(150n);
 
 const reader_1 = new Reader(writer.out(), {
     OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX: true
@@ -321,7 +287,7 @@ try
 }
 catch(err)
 {
-    console.log(err); // Error: Unexpected index! Expected 0n, 1n, 2n... 10n, instead got 11
+    console.log(err); // Error: Unexpected index! Got 150n
 }
 
 const reader_2 = new Reader(writer.out());
@@ -330,20 +296,58 @@ console.log(reader_2.getData()); // undefined
 
 ```
 
-# Actual documentation
+# Writer warning logging
+
+Make sure to check out the [parameters of the `Writer` constructor](#writer-constructor) before reading this.
+
+* If the Writer fails to find a value of an object's key in the lookup table, and `OAB_WRITER_WARN_LOOKUP_NOT_FOUND` is true, a warning is logged.
+    * The key is set as a string, regardless of whether or not a warning was logged.
+
+    * This can be useful if you want to see which keys you missed.
+
+Example code:
+
+```js
+const { Reader, Writer } = require("objectab");
+
+const writer = new Writer({
+    OAB_WRITER_WARN_LOOKUP_NOT_FOUND: false,
+});
+
+writer.storeData({hello: "hi"}); // No warning pops up in console
+
+writer.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = true;
+
+writer.storeData({hello: "hi"}); // Warning pops up: Found a key that wasn't in the lookup table! hello.
+
+writer.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = false;
+
+writer.storeData({hello: "hi"}); // No warning pops up in console
+
+```
+
+# Writer storeData options
+
+There are multiple ways to store data. The Writer provides options for users to pick from.
+
+* Setting `OAB_WRITER_STORE_STRING_AS_NT` to true means that all strings (including keys for objects) will be stored as Null Terminated Strings.
+    * Otherwise, they will be stored as Length Based Strings.
+
+
+* Setting `OAB_WRITER_STORE_FLOAT_AS_32` to true means that all floats and integers will be stored as 32 bit numbers. This is more space efficient. However, it is less precise and your range of numbers is quite low.
+    * Otherwise, they will be stored as 64 bit numbers, which are way larger, but more precise, and increase your range of numbers.
+
+# Documentation
 
 * Types:
-    * `RegularLookup`: `string[]`
+    * `Lookup`: `string[]`
         * Just an array of strings
     
-    * `Lookup`: `{[key: number]: string}`
-        * An object with a key as a number and a value as a string.
-    
-    * `ReverseLookup`: `{[key: string]: string}`
-        * An object with a key as a string and a value as a string.
-    
     * `OABDATA`: `number`, `bigint`, `string`, `OABDATA[]`, `{[key: string]: OABDATA}`, `boolean`, `null`, `undefined`
-        * Since typescript doesn't have an actual type for `NaN`, I was forced to include the `number` data type.
+        * Integers
+        * Floats
+        * `+Infinity`
+        * `-Infinity`
         * BigInts
         * Strings
         * Arrays of OABDATA
@@ -351,10 +355,11 @@ console.log(reader_2.getData()); // undefined
         * Booleans (`true` or `false`)
         * `null`
         * `undefined`
+        * `NaN`
 
 * Reader documentation:
-    * `constructor(content: Uint8Array, options?: Options)`
-        * The optional parameter `options` has been [previously explained](#optional-parameters).
+    * `constructor(content: Uint8Array, options?: { ... })`
+        * [Previously explained](#reader-constructor)
 
     * Error properties
         * `public Reader.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE: boolean`
@@ -365,7 +370,7 @@ console.log(reader_2.getData()); // undefined
         * `public Reader.OAB_READER_ERROR_ON_VU_HIT_EOB: boolean`
         * `public Reader.OAB_READER_ERROR_ON_OOB_LOOKUP: boolean`
 
-        * These have been [previously explained](#error-handling).
+        * [Previously explained](#reader-error-handling).
 
     * Property `public Reader.lookup: Lookup`
         * The lookup tables for the reader.
@@ -401,7 +406,7 @@ console.log(reader_2.getData()); // undefined
     * Function `public Reader.vi(): bigint`
         * Get the next variable-length signed integer.
 
-    * Function `public Reader.string(): string`
+    * Function `public Reader.string(): string`reader
         * Null terminated string. It keeps reading until it hits either the end of the buffer, or `0x00`
             * As mentioned before, if a null character is present anywhere in the string, this totally breaks down.
     
@@ -410,25 +415,25 @@ console.log(reader_2.getData()); // undefined
             * You can store null characters with this.
     
     * Function `public Reader.getData(): OABDATA`
-        * May return the following:
-            * String
-            * Positive and Negative BigInts
-            * `NaN`
-            * Arrays of OABDATA
-            * Objects of OABDATA. Keys must be as strings, due to the nature of javascript.
-            * `undefined`
-            * `null`
-            * Despite the fact that OABDATA has the `number` data type as well, this is merely for `NaN`, `Reader.getData` never returns an integer.
+        * Main way of retreiving data.
 
 * Writer documentation:
+    * `constructor(options: { ... })`
+        * [Previously explained](#writer-constructor)
+
     * Warning properties
         * `public Writer.OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean`
-        * `public Writer.OAB_WRITER_WARN_INT_NOT_SUPP: boolean`
 
-        * These have been [previously explained](#warning-logging).
+        * [Previously explained](#writer-warning-logging).
+    
+    * `storeData` options
+        * `public Writer.OAB_WRITER_STORE_STRING_AS_NT: boolean`
+        * `public Writer.OAB_WRITER_STORE_FLOAT_AS_32: boolean`
 
-    * Property `public Writer.lookupReverse: ReverseLookup`
-        * The reversed lookup tables for the writer.
+        * [Previously explained](#writer-storedata-options)
+
+    * Property `public Writer.lookup: Lookup`
+        * The lookup tables for the writer.
 
     * Property `private Writer._at: number`
         * The index of the writer. Shouldn't be modified by yourself.
@@ -473,17 +478,17 @@ console.log(reader_2.getData()); // undefined
             * You can store null characters wit this.
         * Returns `this`.
     
-    * Function `public storeData(val: OABDATA, storeStringAsNT: boolean = true): Writer`
+    * Function `public storeData(val: OABDATA): Writer`
         * Accepts the following as `val`:
-            * Numbers **(deprecated)**
+            * Numbers
+            * Floats
+            * +/- Infinity
             * BigInts
             * Arrays of OABDATA
             * Objects of OABDATA
             * Booleans (`true` or `false`)
             * `null`
             * `undefined`
-        * `storeStringAsNT` is an optional parameter. It tells the code whether or not to store every string as a null terminated or length based string.
-            * This also includes the strings for object's keys.
         * Returns `this`.
 
 
@@ -491,7 +496,7 @@ console.log(reader_2.getData()); // undefined
 
 We have discussed the documentation, however, one thing that hasn't been discussed in detail is the packet structure - arguably the most important part of the library.
 
-If you're curious on how this library works, then read this. Otherwise, skip it.
+If you're curious on how this library works, then read this. Otherwise, [skip it](#to-do-list).
 
 The library is based around the `Uint8Array` class. In javascript, this is a non-dynamic (i.e. length is specified when calling the constructor), unsigned 8 bit integer array.
 
@@ -501,12 +506,15 @@ Unsigned simply means that the numbers do not have a sign - they're always posit
 
 8 bit means that the largest value that each index can hold is 8 bits.
 
-This seriously limits our options for packet transfer. We cannot simply say:
+This seriously limits our options for size. We cannot simply say:
 
 ```js
 let buf = new Uint8Array([256620341]);
 
-console.log(buf[0]); // 53, or 256620341 & 53.
+console.log(buf[0]); // 53
+
+// 53 === 256620341 & 255
+
 ```
 
 Fortunately, we can use clever tricks to work around this restriction..
@@ -677,7 +685,7 @@ Currently supported data types are:
 
 # storeData: String
 
-When a storeData encounters a string, it checks whether or not the optional parameter `storeStringAsNT` is true.
+When a storeData encounters a string, it checks whether or not `OAB_WRITER_STORE_STRING_AS_NT` is true.
 
 If it is, storeData appends `0` to the buffer and then calls `Writer.string`.
 
@@ -749,19 +757,51 @@ When storeData encounters a boolean (`true` or `false`) value, it appends `5` if
 
 # storeData: number
 
-The type `number` in javascript includes many things, such as, ironically, `NaN`, integers and floats.
+The type `number` in javascript includes many things, such as integers and floats, and ironically `NaN`.
 
-Therefore, we have to add a few more checks to narrow down our options.
+When storeData encounters an Integer or a Float, appends `13`. Then, it uses an ArrayBuffer to converse between a Float64Array and a BigUint64Array, essentially allowing us to convert the Float to a BigInt. Then, it stores the bigint as a vu. However, this process of conversion produces an extremely large number, so do be careful.
+
+Example code:
+
+```js
+const { Reader, Writer } = require("objectab");
+
+const writer = new Writer({
+    OAB_WRITER_STORE_FLOAT_AS_32: true
+});
+
+writer.storeData(0.123892183);
+
+console.log(writer.out()); // Uint8Array(6) [ 13, 175, 246, 246, 239, 3 ]
+// 5 bytes used for storing float. It's not too awful. However...
+
+const reader = new Reader(writer.out());
+
+console.log(reader.getData()); // 0.12389218062162399
+// You can see that it is quite inaccurate
+
+writer.OAB_WRITER_STORE_FLOAT_AS_32 = false;
+
+writer.flush(); // Flush the buffer
+
+writer.storeData(0.123892183);
+
+reader.buffer = writer.out(); // Change the reader's buffer
+reader.at = 0; // Start reading from the beginning
+
+console.log(writer.out()); // Uint8Array(10) [ 14, 213, 154, 220, 209, 222, 236, 237, 223, 63 ]
+// 9 bytes for storing float?! That is quite a lot! However...
+
+console.log(reader.getData()); // 0.123892183
+// You can see that it's quite accurate
+
+```
 
 When storeData encounters NaN, it appends `2`.
-
-When storeData encounters an Integer, it converts it to a BigInt and calls `storeData` again.
 
 When storeData encounters Infinity, it appends `11`.
 
 When storeData encounters -Infinity, it appends `12`.
-
-When storeData encounters a Float, it throws an error.
 
 # storeData: undefined
 
@@ -769,7 +809,7 @@ When storeData encounters `undefined`, it appends `7`.
 
 # storeData: null
 
-In reality, null is an object, however, since the object is so crowded, it'd get confusing, so I just put this here.
+In reality, null is an object, however, the object is crowded, and putting this there would make things confusing, so I just put this here.
 
 When storeData encounters `null`, it appends `8`.
 
@@ -801,7 +841,7 @@ console.log(reader.getData()); // -Infinity
 
 # storeData: Arrays
 
-In reality, arrays are objects, however, since the object is so crowded, it'd get confusing, so I just put this here.
+In reality, arrays are objects, however, the object is crowded, and putting this there would make things confusing, so I just put this here.
 
 When storeData encounters an array, it appends `3` and calls `Writer.vu` with the length of the array. Then, it calls `Writer.storeData` for each of the elements to store them.
 
@@ -873,7 +913,7 @@ let reverse = { // this.
 
 If it does find the lookup, it appends a `0` to tell the reader that we found a key, and stores the number we found
 
-Otherwise, it checks whether `storeStringAsNT` is true:
+Otherwise, it checks whether `OAB_WRITER_STORE_STRING_AS_NT` is true:
 
 If it is, it appends a `1` to tell the reader that we didn't find a lookup, so we're storing the key as a null terminated string.
 
@@ -923,13 +963,17 @@ const reader = new Reader(writer.out(), {
 });
 
 console.log(reader.getData()); // { hello: { hi: 1n } }
+
 ```
+
+# Do have a look at the code yourself
+
+* I can sit here and explain this library all day. However, do actually take a look at [the code](/main.ts) yourself.
 
 # To-do list
 
 There are still lots of features to implement for this library, such as:
 
-* Floats
 * Better documentation
 * More checks for error handling
 

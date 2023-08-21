@@ -1,3 +1,8 @@
+/** Lookup is shared between the receiver and the sender, and it's only use is for objects' keys.
+When both the receiver and the sender share the lookup, we don't need to send the object key as a string.
+Rather we can point out that both the receiver and the sender share it,
+so instead of a string, we put a number which corresponds to the lookup. This saves a lot of space.
+*/
 type Lookup = string[];
 /** Unfortunately, typescript does not have any real definition for NaN, I was forced to include number here, even though the only number is ironically.. not a number */
 type OABDATA = number | bigint | string | OABDATA[] | {
@@ -25,7 +30,7 @@ export declare class Reader {
     OAB_READER_ERROR_ON_STRING_HIT_EOB: boolean;
     /** Whether to throw an error when `vu` hits the end of the buffer before hitting end of vu. */
     OAB_READER_ERROR_ON_VU_HIT_EOB: boolean;
-    /** Whether to throw an error when `getData`'s object storing fails to get a lookup. */
+    /** Whether to throw an error when `getData`'s object retrieving fails to get a lookup. */
     OAB_READER_ERROR_ON_OOB_LOOKUP: boolean;
     constructor(content: Uint8Array, options?: {
         lookup?: Lookup;
@@ -53,6 +58,10 @@ export declare class Reader {
     string(): string;
     /** String with its length stored in the front */
     stringLN(): string;
+    /** Integers/Floats as 32 bit numbers */
+    float32(): number;
+    /** Integers/Floats as 64 bit numbers */
+    float64(): number;
     /** Retrieves stuff like objects, arrays, and can even do it recursively */
     getData(): OABDATA;
     /** Get the rest of the reader data after this.at.
@@ -71,12 +80,15 @@ export declare class Writer {
     lookup: Lookup;
     /** Whether to log a warning if a lookup wasn't found */
     OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean;
-    /** Whether to log a warning if trying to store an integer with `storeData` */
-    OAB_WRITER_WARN_INT_NOT_SUPP: boolean;
+    /** Whether to store strings as null-terminated strings or length based strings */
+    OAB_WRITER_STORE_STRING_AS_NT: boolean;
+    /** Whether to store floats as 32 bits or 64 bits */
+    OAB_WRITER_STORE_FLOAT_AS_32: boolean;
     constructor(options?: {
         lookup?: Lookup;
         OAB_WRITER_WARN_LOOKUP_NOT_FOUND?: boolean;
-        OAB_WRITER_WARN_INT_NOT_SUPP?: boolean;
+        OAB_WRITER_STORE_STRING_AS_NT?: boolean;
+        OAB_WRITER_STORE_FLOAT_AS_32?: boolean;
     });
     /** How much data we have written */
     get at(): number;
@@ -99,8 +111,12 @@ export declare class Writer {
     string(str: string): this;
     /** Stores the length of the string instead of putting a null byte at the end, since the string with null termination obviously can't store null characters */
     stringLN(str: string): this;
+    /** Stores an integer/float as a 32 bit number */
+    float32(num: number): this;
+    /** Stores an integer/float as a 64 bit number */
+    float64(num: number): this;
     /** Stores stuff like objects, arrays, and can even do it recursively */
-    storeData(val: OABDATA, storeStringAsNT?: boolean): this;
+    storeData(val: OABDATA): this;
     /** Get a Uint8Array of everything you wrote. */
     out(): Uint8Array;
     /** Set the buffer to an empty array and return the old buffer */

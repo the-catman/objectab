@@ -1,12 +1,18 @@
-type Lookup = string[];
 
-// Lookup is shared between the receiver and the sender, and it's only use is for objects' keys.
-// When both the receiver and the sender share the lookup, we don't need to send the object key as a string.
-// Rather we can point out that both the receiver and the sender share it,
-// so instead of a string, we put a number which corresponds to the lookup. This saves a lot of space.
+/** Lookup is shared between the receiver and the sender, and it's only use is for objects' keys.
+When both the receiver and the sender share the lookup, we don't need to send the object key as a string.
+Rather we can point out that both the receiver and the sender share it,
+so instead of a string, we put a number which corresponds to the lookup. This saves a lot of space.
+*/
+type Lookup = string[];
 
 /** Unfortunately, typescript does not have any real definition for NaN, I was forced to include number here, even though the only number is ironically.. not a number */
 type OABDATA = number | bigint | string | OABDATA[] | {[key: string]: OABDATA} | boolean | null | undefined;
+
+let arrayBuffer = new ArrayBuffer(8);
+let f32 = new Float32Array(arrayBuffer);
+let f64 = new Float64Array(arrayBuffer);
+let u64 = new BigUint64Array(arrayBuffer);
 
 /** For reading data from incoming packets */
 export class Reader
@@ -59,13 +65,14 @@ export class Reader
         this._buffer = content;
         this.lookup = options?.lookup || [];
         this._length = this._buffer.length;
-        this.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE = options?.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE || false;
-        this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX = options?.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX || false;
-        this.OAB_READER_ERROR_ON_OOB = options?.OAB_READER_ERROR_ON_OOB || false;
-        this.OAB_READER_ERROR_ON_BYTE_OOB = options?.OAB_READER_ERROR_ON_BYTE_OOB || false;
-        this.OAB_READER_ERROR_ON_STRING_HIT_EOB = options?.OAB_READER_ERROR_ON_STRING_HIT_EOB || false;
-        this.OAB_READER_ERROR_ON_VU_HIT_EOB = options?.OAB_READER_ERROR_ON_VU_HIT_EOB || false;
-        this.OAB_READER_ERROR_ON_OOB_LOOKUP = options?.OAB_READER_ERROR_ON_OOB_LOOKUP || false;
+
+        this.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE = options?.OAB_READER_ERROR_ON_GETDATA_OBJECT_WRONG_BYTE ?? false;
+        this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX = options?.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX ?? false;
+        this.OAB_READER_ERROR_ON_OOB = options?.OAB_READER_ERROR_ON_OOB ?? false;
+        this.OAB_READER_ERROR_ON_BYTE_OOB = options?.OAB_READER_ERROR_ON_BYTE_OOB ?? false;
+        this.OAB_READER_ERROR_ON_STRING_HIT_EOB = options?.OAB_READER_ERROR_ON_STRING_HIT_EOB ?? false;
+        this.OAB_READER_ERROR_ON_VU_HIT_EOB = options?.OAB_READER_ERROR_ON_VU_HIT_EOB ?? false;
+        this.OAB_READER_ERROR_ON_OOB_LOOKUP = options?.OAB_READER_ERROR_ON_OOB_LOOKUP ?? false;
     }
 
     /** The buffer's length */
@@ -160,6 +167,20 @@ export class Reader
             }
         }
         return final;
+    }
+
+    /** Integers/Floats as 32 bit numbers */
+    public float32(): number
+    {
+        u64[0] = this.vu();
+        return f32[0];
+    }
+
+    /** Integers/Floats as 64 bit numbers */
+    public float64(): number
+    {
+        u64[0] = this.vu();
+        return f64[0];
     }
 
     /** Retrieves stuff like objects, arrays, and can even do it recursively */
@@ -287,9 +308,19 @@ export class Reader
                 return -Infinity;
             }
 
+            case 13n: // Integers and Floats as 32 bit numbers
+            {
+                return this.float32();
+            }
+
+            case 14n: // Integers and Floats as 64 bit numbers
+            {
+                return this.float64();
+            }
+
             default: // Something has gone terribly wrong.
             {
-                if(this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX) throw new Error(`Unexpected index! Expected 0n, 1n, 2n... 10n, instead got ${byte}`);
+                if(this.OAB_READER_ERROR_ON_GETDATA_UNKNOWN_INDEX) throw new Error(`Unexpected index! Got ${byte}`);
                 return undefined;
             }
         }
@@ -320,20 +351,25 @@ export class Writer
     /** Whether to log a warning if a lookup wasn't found */
     public OAB_WRITER_WARN_LOOKUP_NOT_FOUND: boolean;
 
-    /** Whether to log a warning if trying to store an integer with `storeData` */
-    public OAB_WRITER_WARN_INT_NOT_SUPP: boolean;
+    /** Whether to store strings as null-terminated strings or length based strings */
+    public OAB_WRITER_STORE_STRING_AS_NT: boolean;
+
+    /** Whether to store floats as 32 bits or 64 bits */
+    public OAB_WRITER_STORE_FLOAT_AS_32: boolean;
 
     constructor(options?: {
         lookup?: Lookup
         OAB_WRITER_WARN_LOOKUP_NOT_FOUND?: boolean
-        OAB_WRITER_WARN_INT_NOT_SUPP?: boolean
+        OAB_WRITER_STORE_STRING_AS_NT?: boolean
+        OAB_WRITER_STORE_FLOAT_AS_32?: boolean
     })
     {
         this._at = 0;
         this._buffer = [];
         this.lookup = options?.lookup || [];
-        this.OAB_WRITER_WARN_INT_NOT_SUPP = options?.OAB_WRITER_WARN_INT_NOT_SUPP || false;
-        this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = options?.OAB_WRITER_WARN_LOOKUP_NOT_FOUND || false;
+        this.OAB_WRITER_WARN_LOOKUP_NOT_FOUND = options?.OAB_WRITER_WARN_LOOKUP_NOT_FOUND ?? false;
+        this.OAB_WRITER_STORE_STRING_AS_NT = options?.OAB_WRITER_STORE_STRING_AS_NT ?? true;
+        this.OAB_WRITER_STORE_FLOAT_AS_32 = options?.OAB_WRITER_STORE_FLOAT_AS_32 ?? true;
     }
 
     /** How much data we have written */
@@ -409,14 +445,31 @@ export class Writer
         return this;
     }
 
-    /** Stores stuff like objects, arrays, and can even do it recursively */
-    public storeData(val: OABDATA, storeStringAsNT: boolean = true)
+    /** Stores an integer/float as a 32 bit number */
+    public float32(num: number)
     {
+        f32[0] = num;
+        this.vu(u64[0]);
+        return this;
+    }
+
+    /** Stores an integer/float as a 64 bit number */
+    public float64(num: number)
+    {
+        f64[0] = num;
+        this.vu(u64[0]);
+        return this;
+    }
+
+    /** Stores stuff like objects, arrays, and can even do it recursively */
+    public storeData(val: OABDATA)
+    {
+
         switch (typeof val)
         {
             case "string": // String
             {
-                if(storeStringAsNT)
+                if(this.OAB_WRITER_STORE_STRING_AS_NT)
                 {
                     this.byte(0n);
                     this.string(val);
@@ -435,11 +488,6 @@ export class Writer
                 {
                     this.byte(2n);
                 }
-                else if(Number.isInteger(val)) // Integer
-                {
-                    this.storeData(BigInt(val), storeStringAsNT);
-                    if(this.OAB_WRITER_WARN_INT_NOT_SUPP) console.warn("Warning: Regular integers are not supported. However, it was automatically converted to a bigint.");
-                }
                 else if(val === Infinity) // Positive Infinity
                 {
                     this.byte(11n);
@@ -448,9 +496,18 @@ export class Writer
                 {
                     this.byte(12n);
                 }
-                else // Float
+                else // Integer/Float
                 {
-                    throw new Error("Floating point numbers are currently not supported.");
+                    if(this.OAB_WRITER_STORE_FLOAT_AS_32)
+                    {
+                        this.byte(13n);
+                        this.float32(val);
+                    }
+                    else
+                    {
+                        this.byte(14n);
+                        this.float64(val);
+                    }
                 }
                 break;
             }
@@ -503,7 +560,7 @@ export class Writer
                         } 
                         else // If it didn't, then encode the original property, and tell the receiver not to look it up, and the fact that it's either
                         {
-                            if(storeStringAsNT)
+                            if(this.OAB_WRITER_STORE_STRING_AS_NT)
                             {
                                 this.byte(1n); // an NT string,
                                 this.string(value);

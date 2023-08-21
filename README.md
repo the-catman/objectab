@@ -18,6 +18,8 @@ THE VERSIONS BELOW v1.2.0 ARE DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
 
 * Minor updates (not permanent list):
 
+    * v1.3.1: Updated documentation.
+
 # What is this library?
 
 * This is a library for converting some javascript objects into a Uint8Array.
@@ -63,7 +65,7 @@ THE VERSIONS BELOW v1.2.0 ARE DEPRECATED, UNSAFE AND DANGEROUS! DO NOT USE!
 # Example
 
 * The below is javascript code, however, porting to typescript is way better.
-    * Really, by now everyone should be using typescript.
+    * By now everyone should be using typescript.
 
 Basic example:
 
@@ -73,25 +75,23 @@ const { Reader, Writer } = require("objectab");
 const writer = new Writer();
 
 // As I previously said, this library mainly supports bigints.
-// This is a byte, 0-255. Pretty simple.
+// This is a byte, 0 -> 255. Pretty simple.
 // Attempting to store above this value will just clamp it to 255.
 writer.byte(123n);
 // "wHY dOeS A bYTE HAvE TO bE A BIgiNt". Well, if you don't like it, fix it in your version.
 
 // This is a variable length unsigned integer (uses the LEB128 algorithm). The larger the integer is, the larger the output.
-// Can store from 0 -> as big as BigInt is.
-// Attempting to store a negative number will cause this to go into an infinite loop and crash, so... don't do that.
+// Can store from 0 -> as big as bigints and Uint8Arrays can get???
+// Attempting to store a negative number will throw an error.
 writer.vu(1093021321n);
 
 // This is a variable length signed integer. 
-// You can store positive numbers, it's just not very space efficient since it uses 1 extra bit to store the sign
+// You can store negative numbers with this. It's just not very space efficient since it uses 1 extra bit to store the sign
 writer.vi(-123032321n);
 
-// This is a float.
-// Quite space demanding.
-// If you can, avoid this.
-// Otherwise, you can use it no problem.
-writer.float(0.123892183);
+// This is a float. It's quite space demanding, and not all that accurate (unless you use float64 which is even more space demanding, but provides more accuracy)
+// If you can, avoid this. Otherwise, you can use it no problem.
+writer.float32(0.123892183);
 
 // This is a null terminated string (NT string). This is an okay way of storing data, but trying to include a null character anywhere in the string breaks it.
 writer.string("Hello!");
@@ -99,6 +99,7 @@ writer.string("Hello!");
 // This is a length-based string (LN string). Before the string data, it appends the string's length.
 // The current version checks whether the reader is going out of bounds of the Uint8Array, and if it is, the loop is exited.
 // Therefore, this is pretty safe.
+// It doesn't that that much more space compared to a null terminated string for shorter strings.
 writer.stringLN("Hello from LENGTH!");
 
 // Writer.out() outputs the buffer as a Uint8Array
@@ -110,7 +111,7 @@ console.log(reader.vu()); // 1093021321n
 
 console.log(reader.vi()); // -123032321n
 
-console.log(reader.float()); // 0.12389218062162399
+console.log(reader.float32()); // 0.12389218062162399
 
 console.log(reader.string()); // "Hello!"
 
@@ -531,7 +532,7 @@ However, what if we wanted to store more than that?
 
 You can read in depth about `vu`s [here](https://en.wikipedia.org/wiki/LEB128).
 
-This is quite an interesting datatype. The way it works is that it stores 7 bits of the number at a time, with the [most significant bit](https://en.wikipedia.org/wiki/Bit_numbering) indicating whether or not there's more data coming.
+This is quite an interesting datatype. The way it works is that it stores 7 bits of the number at a time, and the [most significant bit](https://en.wikipedia.org/wiki/Bit_numbering) indicates whether or not there's more data coming.
 
 So, for example, to store the number 1921, which is 11110000001 in binary.
 

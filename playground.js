@@ -3,30 +3,39 @@
 const { Reader, Writer } = require("./lib/main");
 
 const writer = new Writer({
-    OAB_WRITER_STORE_FLOAT_AS_32: true
+    lookup: ["hello"]
 });
 
-writer.storeData(0.123892183);
+writer.storeData({hello: {
+    hi: 1n
+}})
 
-console.log(writer.out()); // Uint8Array(6) [ 13, 175, 246, 246, 239, 3 ]
-// 5 bytes used for storing float. It's not too awful. However...
+console.log(writer.out()); /* Uint8Array(12) [ 4, 1, 0, 0, 4, 1, 1, 104, 105, 0, 10, 1 ]
+4 indicates an object.
+1 indicates that there's 1 key/pair to this object.
 
-const reader = new Reader(writer.out());
+    Next, we need to get the key.
+    0 indicates that a key is found in the lookup table
+    0 indicates that it's the 1st element of the lookup table
 
-console.log(reader.getData()); // 0.12389218062162399
-// You can see that it is quite inaccurate
+    The reader looks that up and goes "yeah alright, I have the 0th element of the lookup, it's called "hello", let me put it in!"
+    
+    Finally, it's time to get the value of the object
+    4 indicates an object
+    1 indicates that there's 1 key/pair to this object.
 
-writer.OAB_WRITER_STORE_FLOAT_AS_32 = false;
+        Next we need to get the key.
+        1 indicates that the key is not found in the lookup table, and that it's stored as a null terminated string.
+        104, and 105 are character codes for "h", and "i" respectively, encoded as a vu
+        0 indicates the end of the string
 
-writer.flush(); // Flush the buffer
+        Finally, it's time to get the value of the object
+        10 indicates a positive bigint
+        1 is the value of the bigint, encoded as a vu
+*/
 
-writer.storeData(0.123892183);
+const reader = new Reader(writer.out(), {
+    lookup: ["hello"]
+});
 
-reader.buffer = writer.out(); // Change the reader's buffer
-reader.at = 0; // Start reading from the beginning
-
-console.log(writer.out()); // Uint8Array(10) [ 14, 213, 154, 220, 209, 222, 236, 237, 223, 63 ]
-// 9 bytes for storing float?! That is quite a lot! However...
-
-console.log(reader.getData()); // 0.123892183
-// You can see that it's quite accurate
+console.log(reader.getData()); // { hello: { hi: 1n } }

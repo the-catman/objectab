@@ -4,7 +4,7 @@ ObjectAB or OAB stands for Object to ArrayBuffer.
 
 # Version list
 
-* The version below `v1.2.0` are **deprecated, unsafe and dangerous**. DO NOT USE!
+* The versions below `v1.2.0` are all **deprecated, unsafe and dangerous**. DO NOT USE THEM!
 
 * Major updates:
 
@@ -530,13 +530,13 @@ Fortunately, we can use clever tricks to work around this restriction..
 
 Starting off, the most obvious data type is a single byte, or 8 bits.
 
-Since Uint8Arrays can support up to 8 bits for each index, that means we can store up to 8 bits (or 255 in decimal) without any problems.
+Since Uint8Arrays can support up to 8 bits for each index, that means we can store up to 8 bits (11111111 in binary, 255 in decimal) without any problems.
 
 However, what if we wanted to store more than that?
 
 # Data type: vu (or variable length unsigned integer)
 
-You can read in depth about `vu`s [here](https://en.wikipedia.org/wiki/LEB128).
+You can read in depth about `vu` (in reality, LEB128) [here](https://en.wikipedia.org/wiki/LEB128).
 
 This is quite an interesting datatype. The way it works is that it stores 7 bits of the number at a time, and the [most significant bit](https://en.wikipedia.org/wiki/Bit_numbering) indicates whether or not there's more data coming.
 
@@ -577,8 +577,6 @@ console.log(reader.vu()); // 1921n
 
 ```
 
-Quite fun, isn't it?
-
 But what if we wanted to store a negative number, or a number that we're not sure of the sign?
 
 # Data type: vi (or variable length signed integer)
@@ -615,11 +613,9 @@ console.log(reader.vi()); // -1921n
 
 ```
 
-Amazing, right?
+But what if we wanted to encode a string?
 
 # String encoding: 2 types
-
-Okay, that's very cool, but how can we encode a string?
 
 We have 2 ways to do this: Both are very easy.
 
@@ -653,11 +649,11 @@ console.log(reader.string()); // "hi"
 
 ```
 
-Okay, that's very nice, but what if you want to encode a string that has a null character? We cannot use this method, otherwise it simply breaks down.
+But what if you want to encode a string that has a null character? We cannot use this method, otherwise it simply breaks down.
 
 # Data type: Length based strings
 
-This is a similar version of the previous code, however, instead of appending a null character to indicate that the string has ended, we simply store the length of the string as a vu before encoding the actual string itself.
+This is a similar version of the previous encoding method, however, instead of appending a null character to indicate that the string has ended, we simply store the length of the string as a vu before encoding the actual string itself.
 
 To decode, we read a vu (to read the length of the string), then simply use a for loop to read the string.
 
@@ -678,7 +674,7 @@ console.log(reader.stringLN()); // "hi"
 
 ```
 
-That's very cool. How do we store objects, though?
+But how do we store objects?
 
 # Functions: storeData/getData
 
@@ -773,7 +769,12 @@ When storeData encounters a boolean (`true` or `false`) value, it appends `5` if
 
 The type `number` in javascript includes many things, such as integers and floats, and ironically `NaN`.
 
-When storeData encounters an Integer or a Float, appends `13`. Then, it uses an ArrayBuffer to converse between a Float64Array and a BigUint64Array, essentially allowing us to convert the Float to a BigInt. Then, it stores the bigint as a vu. However, this process of conversion produces an extremely large number, so do be careful.
+* When storeData encounters an Integer or a Float, it checks whether `OAB_WRITER_STORE_FLOAT_AS_32` is set to true.
+    * If it is, it appends `13`. Then, it uses an ArrayBuffer to converse between a Float32Array and a BigUint64Array, essentially allowing us to convert the Float to a BigInt. Then, it stores the bigint as a vu.
+    * Otherwise, it appends `14`. Then, it uses an ArrayBuffer to converse between a Float64Array and a BigUint64Array, and convert it to a BigInt. Then, it stores the bigint as a vu.
+    
+    * Both these methods are quite intensive on space, so use them with care.
+        * Storing it as 64 bits is way more intensive, so do be careful!
 
 Example code:
 

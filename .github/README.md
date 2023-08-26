@@ -18,7 +18,7 @@
 
 * Minor updates (not permanent list):
 
-    * `v1.3.5`: Updated documentation, fixed typescript support.
+    * `v1.3.6`: Added compilation to ES module.
 
 # Installation
 

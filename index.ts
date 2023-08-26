@@ -6,7 +6,6 @@ so instead of a string, we put a number which corresponds to the lookup. This sa
 */
 type Lookup = string[];
 
-/** Unfortunately, typescript does not have any real definition for NaN, I was forced to include number here, even though the only number is ironically.. not a number */
 type OABDATA = number | bigint | string | OABDATA[] | {[key: string]: OABDATA} | boolean | null | undefined;
 
 let arrayBuffer = new ArrayBuffer(8);

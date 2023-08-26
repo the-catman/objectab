@@ -1,4 +1,4 @@
-# Reading the docs on npmjs.org
+# Reading the docs
 
 Be sure to check out the [github README](https://github.com/the-catman/objectab), it has much more detailed documentation.
 

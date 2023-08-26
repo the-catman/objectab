@@ -1,11 +1,20 @@
 # Reading the docs
 
-Be sure to check out the [github README](https://github.com/the-catman/objectab), it has much more detailed documentation.
+* Be sure to check out the [github README](https://github.com/the-catman/objectab), it has much more detailed documentation.
+
+# Outdated versions
+
+* The versions below `v1.2.0` are all deprecated and dangerous. I have unpublished them. DO NOT USE THEM!
+
+# Installation
+
+```bash
+npm install typescript
+```
 
 # Example
 
-* The below is javascript code, however, porting to typescript is way better.
-    * By now everyone should be using typescript.
+* The code below is in javascript, however, porting to typescript is way better, faster, and easier.
 
 Basic example:
 

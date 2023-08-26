@@ -3,4 +3,14 @@
 
 const { Reader, Writer } = require("./index");
 
-// Do stuff here
+const writer = new Writer();
+
+writer.byte(255n);
+
+console.log(writer.out()); /* Uint8Array(1) [ 255 ]
+There's our number!
+*/
+
+const reader = new Reader(writer.out());
+
+reader.byte(); // 255n

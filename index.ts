@@ -542,9 +542,8 @@ export class Writer
                     {
                         this.storeData(i);
                     }
-                    break;
                 }
-                if(val !== null) // Any type of object other than null
+                else if(val !== null) // Any type of object other than null
                 {
                     let valKeys = Object.keys(val);
                     this.byte(4n);
@@ -573,9 +572,11 @@ export class Writer
                         }
                         this.storeData(val[value]);
                     }
-                    break;
                 }
-                this.byte(8n); // null is an object
+                else
+                {
+                    this.byte(8n); // null is an object
+                }
                 break;
             }
 

@@ -9,7 +9,7 @@
 # Installation
 
 ```bash
-npm install typescript
+npm install objectab
 ```
 
 # Example

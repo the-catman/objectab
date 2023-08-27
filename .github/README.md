@@ -23,7 +23,7 @@
 # Installation
 
 ```bash
-npm install typescript
+npm install objectab
 ```
 
 # Why do you have a seperate README for npm and github?

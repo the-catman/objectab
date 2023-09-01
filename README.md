@@ -48,7 +48,7 @@ writer.string("Hello!");
 // This is a length-based string (LN string). Before the string data, it appends the string's length.
 // The current version checks whether the reader is going out of bounds of the Uint8Array, and if it is, the loop is exited.
 // Therefore, this is pretty safe.
-// It doesn't that that much more space compared to a null terminated string for shorter strings.
+// It doesn't take that much more space compared to a null terminated string for shorter strings.
 writer.stringLN("Hello from LENGTH!");
 
 // Writer.out() outputs the buffer as a Uint8Array

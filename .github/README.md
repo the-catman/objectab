@@ -18,7 +18,7 @@
 
 * Minor updates (not permanent list):
 
-    * `v1.3.6`: Added compilation to ES module.
+    * `v1.3.7`: Fixed typos.
 
 # Installation
 
@@ -70,7 +70,7 @@ npm install objectab
 
 * You *can* (but really shouldn't) store Integers. Just convert it to bigint.
 
-    * Integers and Floats take up a lot of space, as seen [here](#storedata-number).
+    * Integers and Floats take up a lot of space, as seen [here](#storedata-integerfloat).
 
 # Example
 

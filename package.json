@@ -1,6 +1,6 @@
 {
     "name": "objectab",
-    "version": "1.3.7",
+    "version": "1.3.8",
     "description": "A simple typescript library for converting Objects to ArrayBuffers (Uint8Arrays)",
     "main": "index.js",
     "repository": {

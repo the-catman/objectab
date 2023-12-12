@@ -208,23 +208,31 @@ const reader = new Reader(writer.out());
 console.log(reader.stringLN()); // "hi"
 ```
 
-## Functions: storeData/getData
+# storeData and getData
 
-* The most important functions in this library, which enables us to store objects.
+* Now that we have the tools to store basic data types, we can move onto more complex data types such as objects and arrays.
 
-### Storing
+## Storing
 
 * When a value is passed to storeData to encode, the first thing we have to do is check what type of data it is. Is it an integer, a string, an object?
 
-    * Then, according to the data type, we append a byte.
-    
-        * This byte tells the reader what data type it is (so it knows how to process and decode the data).
+    * Then, according to the data type, we append a special byte, and encode it using one of the methods mentioned below.
 
-### storeData: String
+        * This special byte tells the reader what data type to read (so it knows how to process and decode the data).
+
+        * Think of it as manufacturing a box cake. When you sell a box cake to a customer, they have no idea what to do with it; how many eggs should they add, how long should they cook it for, and should they cook it at a low or a high temperature? If you don't provide instructions on how to prepare and bake the cake, it will most likely turn out to be a sloppy mess.
+
+        * This is even more so the case in programming, where a single bit can change a whole packet structure, totally destroying your packet, especially since computers do not have intuition and cannot correct mistakes on the fly; they just do what you tell them to do.
+
+## storeData: String
 
 * When a storeData encounters a string, it checks whether or not [`OAB_WRITER_STORE_STRING_AS_NT`](./README.md#writer-constructor) is true.
+
     * If it is, storeData appends `0` to the buffer and then calls `Writer.string`.
+
     * Otherwise, storeData appends `9` to the buffer and then calls `Writer.stringLN`.
+
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -256,7 +264,7 @@ console.log(reader.getData()); // hello
 console.log(reader.getData()); // hello
 ```
 
-### storeData: BigInt
+## storeData: BigInt
 
 * When storeData encounters a bigint, it checks whether or not the bigint is positive or negative.
     * If it's positive bigint, storeData appends `10` to the buffer and then calls `Writer.vu` on the number.
@@ -267,7 +275,7 @@ console.log(reader.getData()); // hello
 
     * Well, since we already have to use a byte to store the data type, we might as well just use that same byte to denote whether or not the integer is positive or negative. No need to use pointless indicators!
 
-## Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -290,11 +298,11 @@ console.log(reader.getData()); // 42n
 console.log(reader.getData()); // -49n
 ```
 
-### storeData: boolean
+## storeData: boolean
 
 * When storeData encounters a boolean (`true` or `false`) value, it appends `5` if the value is true, and it appends `6` if the value is false.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -313,7 +321,7 @@ console.log(reader.getData()); // true
 console.log(reader.getData()); // false
 ```
 
-### storeData: Integer/Float
+## storeData: Integer/Float
 
 * When storeData encounters an Integer or a Float, it checks whether [`OAB_WRITER_STORE_FLOAT_AS_32`](./README.md#writer-constructor) is set to true.
 
@@ -325,7 +333,7 @@ console.log(reader.getData()); // false
 
         * Storing it as 64 bits is way more intensive on space, so do be careful!
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -360,11 +368,11 @@ console.log(reader.getData()); // 0.123892183
 // You can see that it's quite accurate
 ```
 
-### storeData: NaN (or Not a Number)
+## storeData: NaN (or Not a Number)
 
 * When storeData encounters NaN, it appends `2`.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -382,11 +390,11 @@ const reader = new Reader(writer.out());
 console.log(reader.getData()); // NaN
 ```
 
-### storeData: +Infinity
+## storeData: +Infinity
 
 * When storeData encounters Infinity, it appends `11`.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -404,11 +412,11 @@ const reader = new Reader(writer.out());
 console.log(reader.getData()); // Infinity
 ```
 
-### storeData: -Infinity
+## storeData: -Infinity
 
 * When storeData encounters -Infinity, it appends `12`.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -426,11 +434,11 @@ const reader = new Reader(writer.out());
 console.log(reader.getData()); // -Infinity
 ```
 
-### storeData: undefined
+## storeData: undefined
 
 * When storeData encounters `undefined`, it appends `7`.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -448,11 +456,11 @@ const reader = new Reader(writer.out());
 console.log(reader.getData()); // undefined
 ```
 
-### storeData: null
+## storeData: null
 
 * When storeData encounters `null`, it appends `8`.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -470,12 +478,13 @@ const reader = new Reader(writer.out());
 console.log(reader.getData()); // null
 ```
 
-### storeData: Arrays
+## storeData: Arrays
 
 * When storeData encounters an array, it appends `3` and calls `Writer.vu` with the length of the array. Then, it calls `Writer.storeData` on each of the elements to store them.
+
     * This means that it is possible to store multi-dimensional arrays.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");
@@ -502,7 +511,7 @@ const reader = new Reader(writer.out());
 console.log(reader.getData());
 ```
 
-### storeData: Objects
+## storeData: Objects
 
 * When storeData encounters an object, it appends `4` and calls `Writer.vu` with the length of the object's keys.
 
@@ -522,7 +531,7 @@ console.log(reader.getData());
 
         * This means that it is possible to store multi-dimensional objects.
 
-#### Example code
+### Example code
 
 ```js
 const { Reader, Writer } = require("./index.js");

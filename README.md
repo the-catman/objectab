@@ -6,19 +6,19 @@
 
 * The versions below `v1.2.0` are all **deprecated, unsafe and dangerous**. DO NOT USE THEM!
 
-* Major updates:
+## Major updates
 
-    * `v1.0.0`: Library created.
- 
-    * `v1.1.0`: Actually put error and out of bounds checking and handling. Updated documentation.
+* `v1.0.0`: Library created.
 
-    * `v1.2.0`: Better error checking. Updated the name of the error/warning options in Reader and Writer to be much better. (This means you have to update your code if you use these variables). Added support for +/- Infinity. Updated documentation.
+* `v1.1.0`: Actually put error and out of bounds checking and handling. Updated documentation.
 
-    * `v1.3.0`: Added floats, moved optional parameter of `storeData` to the constructor. Updated documentation.
+* `v1.2.0`: Better error checking. Updated the name of the error/warning options in Reader and Writer to be much better. (This means you have to update your code if you use these variables). Added support for +/- Infinity. Updated documentation.
 
-* Minor updates (not permanent list):
+* `v1.3.0`: Added floats, moved optional parameter of `storeData` to the constructor. Updated documentation.
 
-    * `v1.3.8`: Removed from NPM, major changes to documentation.
+## Minor updates (not permanent list)
+
+* `v1.3.8`: Removed from NPM, major changes to documentation.
 
 # Installation
 
@@ -40,7 +40,7 @@ Copy either [index.js](./index.js), [index.mjs](./index.mjs) or [index.ts](./ind
 
 ## Is it like JSON?
 
-* In a way, yes. However, JSON is way more versatile, readable, less buggy, and less prone to errors. However, it is quite slow and the output is very large. JSON is also not natively a text to bytecode encoder, which means that you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array, which takes too much time for me.
+* In a way, yes. However, JSON is way more versatile (in the sense that everyone knows what it is), readable, less buggy, and less prone to errors. However, it is quite slow and the output is very large. JSON is also not natively a text to bytecode encoder, which means that you have to use something like `TextEncoder` to transform the JSON output to a Uint8Array.
 
 ## Is it efficient?
 
@@ -54,15 +54,51 @@ Copy either [index.js](./index.js), [index.mjs](./index.mjs) or [index.ts](./ind
 
 * Given the extremely sensitive nature of this, yes. If even one byte is malformed, there is a very high possibility of this breaking.
 
+## How do I debug errors?
+
+* You basically cannot, because the packet structure is like a chain. You cannot know what the packet as a whole means without decoding the entire packet, and if one byte is malformed, whatever comes after it is basically garbage that takes excruciating effort to debug. I highly advise that on the development server you use something like JSON, which is readable for humans, and when you have eliminated all the bugs, you move to using the library.
+
+    * Imagine that you're baking a box cake, and halfway through, the box's instructions stop. What do you do? Should you add a cup more flour, or bake it 5 minutes longer at a low temperature? You have got no idea, and any action you take afterwards is based on pure speculation and trial-and-error. You might get the cake right the 5th time, but the past 4 batches were all gone down the drain (or, well, trash).
+
+    * Now imagine that, but on the scale of random packet noise, alongside an unhelpful computer who cannot use intuition and cannot self-correct (unlike the baker, who can probably get it right after a few tries). You might get it right after excruciating effort, but really it'd be easier to use JSON.
+
 ## Are there any things I should know before using this?
 
-* One of the most important things is the lookup, if you're storing objects. It has to be ***exactly*** the same on both the sender and receiver, or else object keys might be malformed.
+* One of the most important things is the lookup, if you're storing objects. It has to be *exactly* the same on both the sender and receiver, or else object keys will be malformed.
 
-* You can only retrieve objects in the same order as you stored them.
+* You can only retrieve objects in the same order as you stored them. As exlpained above, the packets are stored in a big chain. You cannot get through point X in the chain without going through what comes before it.
 
 * You *can* (but really shouldn't) store Integers. Just convert it to a BigInt.
 
 * Integers and Floats take up a lot of space, as seen [here](#storedata-integerfloat).
+
+## What does data corruption look like?
+
+* It can really be anything. Your data could be just one character off, or be total garbage, or anywhere in between these two.
+
+### Example code
+
+```js
+const { Reader, Writer } = require("./index.js");
+
+// Sample data
+
+const writer = new Writer();
+writer.byte(123n);
+writer.vu(1093021321n);
+writer.vi(-123032321n);
+writer.float32(0.123892183);
+writer.string("Hello!");
+writer.stringLN("Hello from LENGTH!");
+
+const reader = new Reader(writer.out());
+
+// Corrupted data, since we can only retrieve data in order.
+
+console.log(reader.float32()); // 1.723597111119525e-43
+
+console.log(reader.stringLN()); // ꘃ묯Hello!Hello from LENGTH!
+```
 
 ## How does the library work?
 

@@ -26,14 +26,6 @@ Copy either [index.js](./index.js), [index.mjs](./index.mjs) or [index.ts](./ind
 
 # Q&A
 
-## Why isn't the package published on NPM?
-
-* It was, I just eventually deleted it along with my account.
-
-## Why did you delete it on NPM?
-
-* I don't like NPM's policy of making my email address public.
-
 ## What is this library?
 
 * This is a library for converting some JavaScript objects into a Uint8Array and back. However, I didn't originally come up with the idea of doing this.
@@ -58,7 +50,7 @@ Copy either [index.js](./index.js), [index.mjs](./index.mjs) or [index.ts](./ind
 
 * You basically cannot, because the packet structure is like a chain. You cannot know what the packet as a whole means without decoding the entire packet, and if one byte is malformed, whatever comes after it is basically garbage that takes excruciating effort to debug. I highly advise that on the development server you use something like JSON, which is readable for humans, and when you have eliminated all the bugs, you move to using the library.
 
-    * Imagine that you're baking a box cake, and halfway through, the box's instructions stop. What do you do? Should you add a cup more flour, or bake it 5 minutes longer at a low temperature? You have got no idea, and any action you take afterwards is based on pure speculation and trial-and-error. You might get the cake right the 5th time, but the past 4 batches were all gone down the drain (or, well, trash).
+    * Imagine that you're baking a box cake, and halfway through, the box's instructions stop. What do you do? You have got no idea, and any action you take afterwards is based on pure speculation and trial-and-error. You might get the cake right the 5th time, but the past 4 batches were all gone down the drain.
 
     * Now imagine that, but on the scale of random packet noise, alongside an unhelpful computer who cannot use intuition and cannot self-correct (unlike the baker, who can probably get it right after a few tries). You might get it right after excruciating effort, but really it'd be easier to use JSON.
 

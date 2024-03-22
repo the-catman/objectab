@@ -1,4 +1,3 @@
-
 /** Lookup is shared between the receiver and the sender, and it's only use is for objects' keys.
 When both the receiver and the sender share the lookup, we don't need to send the object key as a string.
 Rather we can point out that both the receiver and the sender share it,

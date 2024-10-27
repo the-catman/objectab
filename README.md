@@ -70,7 +70,7 @@ This library can store the following:
 * Integers
 * Floats
 
-* If a value is passed that does not match one of these data types, an error is thrown.
+If a value is passed that does not match one of these data types, an error is thrown.
 
 ## Examples
 

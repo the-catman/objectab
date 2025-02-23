@@ -25,16 +25,17 @@ function getKeys(obj: Record<string, any>): string[] {
     return Array.from(keys);
 }
 
-let sampleData = {
+const sampleData = {
     "user": {
         "id": 1,
         "name": "John Doe",
         "email": "john.doe@example.com",
         "isActive": true,
         "relationshipStatus": "married",
-        "wifeName": null,
+        "isMale": true,
+        "spouseName": "Sarah",
         "age": 30,
-        "socialCreditScore": -5,
+        "socialCreditScore": null,
         "roles": ["admin", "user"],
         "profile": {
             "bio": "Software developer with a passion for open-source.",
@@ -83,7 +84,7 @@ let sampleData = {
 };
 
 function check(lookup: string[]) {
-    const writerData = new Writer({ lookup }).data(sampleData).out()
+    const writerData = new Writer({ lookup }).data(sampleData).out();
     const JSONdata = JSON.stringify(sampleData);
 
     const sanityCheck = new Reader(writerData, { lookup }).data();
@@ -95,7 +96,7 @@ function check(lookup: string[]) {
     }
 
     console.log(`Writer data length: ${writerData.length}, JSON length: ${JSONdata.length}.`);
-    console.log(`Total data save: ${JSONdata.length - writerData.length}`);
+    console.log(`Total data saved: ${JSONdata.length - writerData.length} bytes.`);
 
     const iters = 500000;
 

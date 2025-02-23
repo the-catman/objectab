@@ -7,22 +7,22 @@ type Lookup = string[];
 
 export type OABDATA = number | string | OABDATA[] | { [key: string]: OABDATA } | boolean | null;
 
-const aBuf = new ArrayBuffer(4);
-const f32 = new Float32Array(aBuf);
-const u32 = new Uint32Array(aBuf);
+const convBuff = new ArrayBuffer(4); // Buffer we use to convert to and from floats and unsigned 32 bit integers.
+const f32 = new Float32Array(convBuff);
+const u32 = new Uint32Array(convBuff);
 
 /**
  * For reading data from incoming packets
  */
 export class Reader {
     /** The index of the reader */
-    public _at: number;
+    private _at: number;
 
     /** The reader's buffer */
     private buffer: Uint8Array;
 
     /** The lookup */
-    public lookup: Lookup;
+    private lookup: Lookup;
 
     constructor(content: Uint8Array, options?: {
         lookup?: Lookup
@@ -86,81 +86,72 @@ export class Reader {
     public data(): OABDATA { // Further explained in the Writer
         const byte = this.buffer[this.at++];
         switch (byte) {
-            case 0: // Length-based string
+            case 1: // Positive numbers
                 {
-                    return this.string();
+                    return this.vu();
                 }
-
-            case 1: // Negative numbers
+            case 2: // Negative numbers
                 {
                     return -this.vu();
                 }
-
-            case 2: // Array
+            case 3: // Floats
                 {
-                    const arrLen = this.vu(),
-                        arr: OABDATA = [];
-                    for (let i = 0; i < arrLen; i++) {
-                        arr.push(this.data());
-                    }
-                    return arr;
+                    return this.float();
                 }
-
-            case 3: // Any object
-                {
-                    const objKeyLen = this.vu(),
-                        final: {
-                            [key: string]: OABDATA
-                        } = {};
-                    for (let i = 0; i < objKeyLen; i++) {
-                        const byte = this.buffer[this.at++];
-                        let key: string;
-                        switch (byte) {
-                            case 0: {
-                                key = this.string();
-                                break;
-                            }
-                            case 1: {
-                                key = this.lookup[this.vu()];
-                                if (key === undefined) { // Something has gone terribly wrong.
-                                    throw new Error(`\`getData\`'s object key strong looked up a value out of bounds!`);
-                                }
-                                break;
-                            }
-                            default: {
-                                throw new Error(`Unknown byte ${byte} in decoding an object.`)
-                            }
-                        }
-                        final[key] = this.data();
-                    }
-                    return final;
-                }
-
             case 4: // True
                 {
                     return true;
                 }
-
             case 5: // False
                 {
                     return false;
                 }
-
-            case 6: // Null
+            case 6: // Array
+                {
+                    const arr: OABDATA = [];
+                    while (this.buffer[this.at]) {
+                        arr.push(this.data());
+                    }
+                    this.at++;
+                    return arr;
+                }
+            case 7: // Any object
+                {
+                    const final: {
+                        [key: string]: OABDATA
+                    } = {};
+                    while (this.buffer[this.at]) {
+                        const byte = this.buffer[this.at++];
+                        let key: string;
+                        switch (byte) {
+                            case 1: {
+                                key = this.string();
+                                break;
+                            }
+                            case 2: {
+                                key = this.lookup[this.vu()];
+                                if (key === undefined) { // Something has gone terribly wrong.
+                                    throw new Error(`Reader.getData's object key string looked up a value out of bounds!`);
+                                }
+                                break;
+                            }
+                            default: {
+                                throw new Error(`Unknown byte ${byte} in decoding an object.`);
+                            }
+                        }
+                        final[key] = this.data();
+                    }
+                    this.at++;
+                    return final;
+                }
+            case 8: // Null
                 {
                     return null;
                 }
-
-            case 7: // Positive numbers
+            case 9: // Length-based string
                 {
-                    return this.vu();
+                    return this.string();
                 }
-
-            case 8: // Floats
-                {
-                    return this.float();
-                }
-
             default: // Something has gone terribly wrong.
                 {
                     throw new Error(`Unexpected index! Got ${byte}`);
@@ -180,10 +171,10 @@ export class Reader {
 /** For writing data to outgoing packets */
 export class Writer {
     /** The buffer itself */
-    public buffer: number[];
+    private buffer: number[];
 
     /** The lookup */
-    public lookup: Lookup;
+    private lookup: Lookup;
 
     /** Whether to console.warn when a lookup isn't found */
     public warnIfNoLookup: boolean;
@@ -214,7 +205,7 @@ export class Writer {
             let part = num & 0b01111111;
             num >>>= 7;
             if (num) part |= 0b10000000;
-            this.buffer.push(part);
+            this.byte(part);
         } while (num);
 
         return this;
@@ -232,9 +223,8 @@ export class Writer {
      * since the string with null termination obviously can't store null characters
      */
     public string(str: string) {
-        const strLen = str.length;
         this.vu(str.length);
-        for (let i = 0; i < strLen; i++) {
+        for (let i = 0; i < str.length; i++) {
             this.vu(str.charCodeAt(i)); // Store the charcodes in vu form, since some charcodes are above 255 (which is the max limit for byte)
         }
         return this;
@@ -243,86 +233,79 @@ export class Writer {
     /** Stores an integer/float as a 32 bit number */
     public float(num: number) {
         f32[0] = num;
-        this.vu(u32[0]);
-        return this;
+        return this.vu(u32[0]);
     }
 
     /** Stores stuff like objects, arrays, and can even do it recursively */
     public data(val: OABDATA) {
         switch (typeof val) {
-            case "string": // String
-                {
-                    this.buffer.push(0);
-                    this.string(val);
-                    break;
-                }
-
             case "number": // Any number
                 {
                     if (Number.isFinite(val)) { // Integer/Float
                         if (Number.isInteger(val)) {
-                            if (val < 0) {
-                                this.buffer.push(1);
-                                this.vu(-val);
+                            if (val >= 0) {
+                                this.byte(1).vu(val); // Positive int
                             } else {
-                                this.buffer.push(7);
-                                this.vu(val);
+                                this.byte(2).vu(-val); // Negative int
                             }
                         } else {
-                            this.buffer.push(8);
-                            this.float(val);
+                            this.byte(3).float(val); // Float
                         }
                     } else {
                         throw new Error(`Cannot store ${val}!`);
                     }
                     break;
                 }
-
             case "boolean": // Boolean
                 {
-                    this.buffer.push(
+                    this.byte(
                         val ?
                             4 : // True
                             5 // False
                     );
                     break;
                 }
-
             case "object": // Any object
                 {
                     if (Array.isArray(val)) { // Array
-                        this.buffer.push(2);
-                        this.vu(val.length); // Number of elements in the array
-                        for (let i of val) {
-                            this.data(i);
+                        this.byte(6);
+
+                        for (let i = 0; i < val.length; i++) {
+                            this.data(val[i]);
                         }
-                    } else if (val !== null) { // Any type of object other than null
-                        const valKeys = Object.keys(val);
-                        const valKeysLen = valKeys.length;
-                        this.buffer.push(3);
-                        this.vu(valKeysLen); // Number of properties in the object
-                        for (let i = 0; i < valKeysLen; i++) {
-                            const value = valKeys[i];
-                            let tableEnc = this.lookup.indexOf(value);
-                            if (tableEnc === -1) {
-                                this.buffer.push(0);
-                                this.string(value);
-                                if(this.warnIfNoLookup) console.warn(`A key wasn't in the lookup table! ${value}.`);
-                            } else {
-                                this.buffer.push(1);
-                                this.vu(tableEnc);
+
+                        this.byte(0); // Null terminator
+                    } else if (val !== null) {  // Any type of object other than null
+                        this.byte(7);
+
+                        for (const [key, value] of Object.entries(val)) {
+                            const tableEnc = this.lookup.indexOf(key);
+
+                            if (tableEnc === -1) { // Not found key
+                                this.byte(1).string(key); // Store it as a string
+                                if (this.warnIfNoLookup) console.warn(`A key wasn't in the lookup table! ${value}.`);
+                            } else { // Key found
+                                this.byte(2).vu(tableEnc); // Store the index
                             }
-                            this.data(val[value]);
+
+                            this.data(value); // Store the value
                         }
+
+                        this.byte(0); // Null terminator
                     } else {
-                        this.buffer.push(6); // null is an object
+                        this.byte(8); // Null is an object
                     }
                     break;
                 }
-
-            default: { // If none of these criteria are met, throw an error
-                throw new Error(`Unknown data type! ${typeof (val)}`);
-            }
+            case "string": // String
+                {
+                    this.byte(9).string(val);
+                    break;
+                }
+            default: // If none of these criteria are met, throw an error
+                {
+                    throw new Error(`Unknown data type! ${typeof (val)}`);
+                }
         }
         return this;
     }

@@ -62,7 +62,7 @@ Pull requests, issues, suggestions, and bug reports are welcome.
 
 This library can store the following:
 
-* null
+* Nulls
 * Booleans
 * Strings
 * Objects

@@ -23,7 +23,7 @@ console.log(reader.vu(), reader.vi(), reader.float(), reader.byte()); // 6 36 1.
 
 writer = new Writer();
 
-writer.data([1, 2, 3, [{hello: 123}, "hello hello 1234"]]);
+writer.data([1, 2, 3, [{ hello: 123 }, "hello hello 1234"]]);
 
 reader = new Reader(writer.out());
 

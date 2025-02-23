@@ -1,4 +1,4 @@
-import { OABDATA, Reader, Writer } from "./index.ts";
+import { Lookup, OABDATA, Reader, Writer } from "./index.ts";
 
 function getKeys(obj: Record<string, any>): string[] {
     const keys: Set<string> = new Set();
@@ -8,7 +8,7 @@ function getKeys(obj: Record<string, any>): string[] {
             keys.add(key);
             const value = currentObj[key];
 
-            if (typeof value === 'object') {
+            if (typeof value === 'object' && value !== null) {
                 if (Array.isArray(value)) {
                     value.forEach(item => {
                         if (item && typeof item === 'object') {
@@ -33,7 +33,7 @@ const sampleData = {
         "isActive": true,
         "relationshipStatus": "married",
         "isMale": true,
-        "spouseName": "Sarah",
+        "spouseName": "Wang Mei (王梅)",
         "age": 30,
         "socialCreditScore": null,
         "roles": ["admin", "user"],
@@ -83,7 +83,7 @@ const sampleData = {
     }
 };
 
-function check(lookup: string[]) {
+function check(lookup?: Lookup) {
     const writerData = new Writer({ lookup }).data(sampleData).out();
     const JSONdata = JSON.stringify(sampleData);
 
@@ -126,4 +126,4 @@ console.log("Full lookup test:");
 check(getKeys(sampleData));
 
 console.log("\n\nNo lookup test:");
-check([]);
+check();

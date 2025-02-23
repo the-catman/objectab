@@ -72,6 +72,12 @@ This library can store the following:
 
 If a value is passed that does not match one of these data types, an error is thrown.
 
+## Note
+
+Objects and primitive datatypes must be stored and retrieved in the same order, or your data will either be corrupted, or the program will throw an error.
+
+Similarly, the Lookup array must be the same on both the Writer and Reader.
+
 ## Examples
 
 Have a look at [examples.ts](./examples.ts), and you can easily pick up what this library is about.

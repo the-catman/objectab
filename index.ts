@@ -7,9 +7,15 @@ export type Lookup = string[] | undefined;
 
 export type OABDATA = number | string | OABDATA[] | { [key: string]: OABDATA } | boolean | null;
 
-const convBuff = new ArrayBuffer(4); // Buffer we use to convert to and from floats and unsigned 32 bit integers.
+/** Buffer we use to convert to and from floats and unsigned 32 bit integers. */
+const convBuff = new ArrayBuffer(4);
 const f32 = new Float32Array(convBuff);
-const u32 = new Uint32Array(convBuff);
+/** The reason we use Uint8Array instead of Uint32Array is because most floats already take up at least 29-30 bits.
+vu can only store 7 bits of a number at a time. 30 / 7 = 4.2, hence, we need 5 bytes to store most floats using u32 and vu.
+Instead, since we know that for most floats we'll be using the full 32 bits anyway, might as well use one less byte.
+It doesn't hurt performance, but it saves bytes.
+*/
+const u8 = new Uint8Array(convBuff);
 
 /**
  * For reading data from incoming packets.
@@ -43,8 +49,8 @@ export class Reader {
     }
 
     /** Unsigned 8 bit integer. */
-    public byte(): number {
-        return this.buffer[this.at++];
+    public byte(advance: boolean = true): number {
+        return this.buffer[advance ? this.at++ : this.at];
     }
 
     /** LEB128, variable length decoding of an unsigned integer. */
@@ -53,7 +59,7 @@ export class Reader {
         let shift = 0;
 
         do {
-            out |= (this.buffer[this.at] & 127) << shift;
+            out |= (this.byte(false) & 127) << shift;
             shift += 7;
         } while (this.byte() & 128);
 
@@ -68,7 +74,7 @@ export class Reader {
 
     /** Decodes a single character stored as UTF-8.
      * 
-     * The function returns the character code as a number, not the character itself.
+     * The function returns the character point as a number, not the character itself.
      */
     public char(): number {
         const byte1 = this.byte();
@@ -83,14 +89,13 @@ export class Reader {
             const byte3 = this.byte();
             return ((byte1 & 0b00001111) << 12) | ((byte2 & 0b00111111) << 6) | (byte3 & 0b00111111);
         } else if ((byte1 & 0b11110000) === 0b11110000) {
-            // 4-byte character
             const byte2 = this.byte();
             const byte3 = this.byte();
             const byte4 = this.byte();
             return ((byte1 & 0b00000111) << 18) | ((byte2 & 0b00111111) << 12) |
                 ((byte3 & 0b00111111) << 6) | (byte4 & 0b00111111);
         } else {
-            throw new Error("Error in decoding UTF-8.");
+            throw new Error("Error in decoding UTF-8: value out of bounds.");
         }
     }
 
@@ -106,14 +111,17 @@ export class Reader {
 
     /** Retrieves integers/floats using 32 bit precision. */
     public float(): number {
-        u32[0] = this.vu();
+        u8[0] = this.byte();
+        u8[1] = this.byte();
+        u8[2] = this.byte();
+        u8[3] = this.byte();
         return f32[0];
     }
 
     /** Retrieves many values, and can even do it recursively. */
-    public data(): OABDATA { // Further explained in the Writer
-        const byte = this.byte();
-        switch (byte) {
+    public data(): OABDATA {
+        const header = this.byte();
+        switch (header) {
             case 1: // Positive numbers
                 {
                     return this.vu();
@@ -137,10 +145,10 @@ export class Reader {
             case 6: // Array
                 {
                     const arr: OABDATA = [];
-                    while (this.buffer[this.at]) {
+                    while (this.byte(false)) {
                         arr.push(this.data());
                     }
-                    this.at++;
+                    this.at++; // Remove null terminator
                     return arr;
                 }
             case 7: // Any object
@@ -148,36 +156,32 @@ export class Reader {
                     const final: {
                         [key: string]: OABDATA
                     } = {};
-                    while (this.buffer[this.at]) {
-                        let key: string;
-                        if (this.lookup !== undefined) {
-                            const byte = this.byte();
-                            switch (byte) {
-                                case 1:
-                                    {
-                                        key = this.string();
-                                        break;
+                    while (this.byte(false)) {
+                        let key: string | undefined;
+                        const byte = this.byte();
+                        switch (byte) {
+                            case 1:
+                                {
+                                    key = this.string();
+                                    break;
+                                }
+                            case 2:
+                                {
+                                    key = this.lookup?.[this.vu()];
+                                    if (key === undefined) { // Something has gone terribly wrong.
+                                        throw new Error(`Reader.getData's object key string looked up a value out of bounds!`);
                                     }
-                                case 2:
-                                    {
-                                        key = this.lookup[this.vu()];
-                                        if (key === undefined) { // Something has gone terribly wrong.
-                                            throw new Error(`Reader.getData's object key string looked up a value out of bounds!`);
-                                        }
-                                        break;
-                                    }
-                                default:
-                                    {
-                                        throw new Error(`Unknown byte ${byte} in decoding an object.`);
-                                    }
-                            }
-                        } else {
-                            key = this.string();
+                                    break;
+                                }
+                            default:
+                                {
+                                    throw new Error(`Unknown byte ${byte} in decoding an object.`);
+                                }
                         }
 
                         final[key] = this.data();
                     }
-                    this.at++;
+                    this.at++; // Remove null terminator
                     return final;
                 }
             case 8: // Null
@@ -190,7 +194,7 @@ export class Reader {
                 }
             default: // Something has gone terribly wrong.
                 {
-                    throw new Error(`Unexpected index! Got ${byte}`);
+                    throw new Error(`Unexpected index! Got ${header}`);
                 }
         }
     }
@@ -232,10 +236,10 @@ export class Writer {
 
     /** LEB128, variable length encoding of an unsigned integer.
      * 
-     * Attempting to store a negative integer will throw an error.
+     * Attempting to store a negative integer will cast it to unsigned, then store.
      */
     public vu(num: number) {
-        if (num < 0) throw new Error(`Cannot store negative integers with vu! ${num}`);
+        num >>>= 0; // Cast to unsigned.
 
         do {
             let part = num & 0b01111111;
@@ -261,20 +265,21 @@ export class Writer {
      */
     public char(charCode: number) {
         if (charCode <= 0x7F) {
-            this.buffer.push(charCode);
+            this.byte(charCode);
         } else if (charCode <= 0x7FF) {
-            this.buffer.push(0b11000000 | (charCode >> 6));
-            this.buffer.push(0b10000000 | (charCode & 0b111111));
+            this.byte(0b11000000 | (charCode >> 6))
+                .byte(0b10000000 | (charCode & 0b111111));
         } else if (charCode <= 0xFFFF) {
-            // 3-byte encoding (1110xxxx 10xxxxxx 10xxxxxx)
-            this.buffer.push(0b11100000 | (charCode >> 12));
-            this.buffer.push(0b10000000 | ((charCode >> 6) & 0b111111));
-            this.buffer.push(0b10000000 | (charCode & 0b111111));
+            this.byte(0b11100000 | (charCode >> 12))
+                .byte(0b10000000 | ((charCode >> 6) & 0b111111))
+                .byte(0b10000000 | (charCode & 0b111111));
         } else if (charCode <= 0x10FFFF) {
-            this.buffer.push(0b11110000 | (charCode >> 18)); // First byte
-            this.buffer.push(0b10000000 | ((charCode >> 12) & 0b111111));
-            this.buffer.push(0b10000000 | ((charCode >> 6) & 0b111111));
-            this.buffer.push(0b10000000 | (charCode & 0b111111));
+            this.byte(0b11110000 | (charCode >> 18))
+                .byte(0b10000000 | ((charCode >> 12) & 0b111111))
+                .byte(0b10000000 | ((charCode >> 6) & 0b111111))
+                .byte(0b10000000 | (charCode & 0b111111));
+        } else {
+            throw new Error("Error in encoding in UTF-8: value out of bounds.")
         }
     }
 
@@ -284,7 +289,7 @@ export class Writer {
     public string(str: string) {
         this.vu(str.length);
         for (let i = 0; i < str.length; i++) {
-            this.char(str.codePointAt(i) as number); // Store the charcodes in vu form, since some charcodes are above 255 (which is the max limit for byte)
+            this.char(str.codePointAt(i) as number);
         }
         return this;
     }
@@ -292,7 +297,7 @@ export class Writer {
     /** Stores an integer/float using 32 bit precision. */
     public float(num: number) {
         f32[0] = num;
-        return this.vu(u32[0]);
+        return this.byte(u8[0]).byte(u8[1]).byte(u8[2]).byte(u8[3]);
     }
 
     /** Stores many values, and can even do it recursively. */
@@ -338,17 +343,13 @@ export class Writer {
                         this.byte(7);
 
                         for (const [key, value] of Object.entries(val)) {
-                            if (this.lookup !== undefined) {
-                                const tableEnc = this.lookup.indexOf(key);
+                            const tableEnc = this.lookup?.indexOf(key) ?? -1;
 
-                                if (tableEnc === -1) { // Not found key
-                                    this.byte(1).string(key); // Store it as a string
-                                    if (this.warnIfNoLookup) console.warn(`A key wasn't in the lookup table! ${value}.`);
-                                } else { // Key found
-                                    this.byte(2).vu(tableEnc); // Store the index
-                                }
-                            } else {
-                                this.string(key);
+                            if (tableEnc === -1) { // Not found key
+                                this.byte(1).string(key); // Store it as a string
+                                if (this.warnIfNoLookup) console.warn(`A key wasn't in the lookup table! ${value}.`);
+                            } else { // Key found
+                                this.byte(2).vu(tableEnc); // Store the index
                             }
 
                             this.data(value); // Store the value

@@ -222,11 +222,6 @@ export class Writer {
     /** Buffer we use to convert to and from floats and unsigned 32 bit integers. */
     private convBuff = new ArrayBuffer(4);
     private f32 = new Float32Array(this.convBuff);
-    /** The reason we use Uint8Array instead of Uint32Array is because most floats already take up at least 29-30 bits.
-    vu can only store 7 bits of a number at a time. 30 / 7 = 4.2, hence, we need 5 bytes to store most floats using u32 and vu.
-    Instead, since we know that for most floats we'll be using the full 32 bits anyway, might as well use one less byte.
-    It doesn't hurt performance, but it saves bytes.
-    */
     private u8 = new Uint8Array(this.convBuff);
 
     constructor(options?: {

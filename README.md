@@ -2,15 +2,11 @@
 
 ObjectAB or OAB stands for Object to ArrayBuffer.
 
-## Version list
-
-### Major updates
+## Updates
 
 * `v1.0.0`: Library re-released.
-
-### Minor updates
-
 * `v1.0.1`: Added single character encoding using UTF-8, cleaned up code, added better comments.
+* `v1.1.0`: <span style="color: red;"><i><b>Fixed <u>critical</u> bug.</b></i></span>
 
 ## Installation
 

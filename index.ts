@@ -7,16 +7,6 @@ export type Lookup = string[] | undefined;
 
 export type OABDATA = number | string | OABDATA[] | { [key: string]: OABDATA } | boolean | null;
 
-/** Buffer we use to convert to and from floats and unsigned 32 bit integers. */
-const convBuff = new ArrayBuffer(4);
-const f32 = new Float32Array(convBuff);
-/** The reason we use Uint8Array instead of Uint32Array is because most floats already take up at least 29-30 bits.
-vu can only store 7 bits of a number at a time. 30 / 7 = 4.2, hence, we need 5 bytes to store most floats using u32 and vu.
-Instead, since we know that for most floats we'll be using the full 32 bits anyway, might as well use one less byte.
-It doesn't hurt performance, but it saves bytes.
-*/
-const u8 = new Uint8Array(convBuff);
-
 /**
  * For reading data from incoming packets.
  */
@@ -29,6 +19,16 @@ export class Reader {
 
     /** The lookup. */
     private lookup: Lookup;
+
+    /** Buffer we use to convert to and from floats and unsigned 32 bit integers. */
+    private convBuff = new ArrayBuffer(4);
+    private f32 = new Float32Array(this.convBuff);
+    /** The reason we use Uint8Array instead of Uint32Array is because most floats already take up at least 29-30 bits.
+    vu can only store 7 bits of a number at a time. 30 / 7 = 4.2, hence, we need 5 bytes to store most floats using u32 and vu.
+    Instead, since we know that for most floats we'll be using the full 32 bits anyway, might as well use one less byte.
+    It doesn't hurt performance, but it saves bytes.
+    */
+    private u8 = new Uint8Array(this.convBuff);
 
     constructor(content: Uint8Array, options?: {
         lookup?: Lookup
@@ -111,11 +111,11 @@ export class Reader {
 
     /** Retrieves integers/floats using 32 bit precision. */
     public float(): number {
-        u8[0] = this.byte();
-        u8[1] = this.byte();
-        u8[2] = this.byte();
-        u8[3] = this.byte();
-        return f32[0];
+        this.u8[0] = this.byte();
+        this.u8[1] = this.byte();
+        this.u8[2] = this.byte();
+        this.u8[3] = this.byte();
+        return this.f32[0];
     }
 
     /** Retrieves many values, and can even do it recursively. */
@@ -219,6 +219,16 @@ export class Writer {
     /** Whether to console.warn when a lookup isn't found. */
     public warnIfNoLookup: boolean;
 
+    /** Buffer we use to convert to and from floats and unsigned 32 bit integers. */
+    private convBuff = new ArrayBuffer(4);
+    private f32 = new Float32Array(this.convBuff);
+    /** The reason we use Uint8Array instead of Uint32Array is because most floats already take up at least 29-30 bits.
+    vu can only store 7 bits of a number at a time. 30 / 7 = 4.2, hence, we need 5 bytes to store most floats using u32 and vu.
+    Instead, since we know that for most floats we'll be using the full 32 bits anyway, might as well use one less byte.
+    It doesn't hurt performance, but it saves bytes.
+    */
+    private u8 = new Uint8Array(this.convBuff);
+
     constructor(options?: {
         lookup?: Lookup,
         warnIfNoLookup?: boolean
@@ -296,8 +306,8 @@ export class Writer {
 
     /** Stores an integer/float using 32 bit precision. */
     public float(num: number) {
-        f32[0] = num;
-        return this.byte(u8[0]).byte(u8[1]).byte(u8[2]).byte(u8[3]);
+        this.f32[0] = num;
+        return this.byte(this.u8[0]).byte(this.u8[1]).byte(this.u8[2]).byte(this.u8[3]);
     }
 
     /** Stores many values, and can even do it recursively. */

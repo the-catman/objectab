@@ -6,7 +6,8 @@ ObjectAB or OAB stands for Object to ArrayBuffer.
 
 * `v1.0.0`: Library re-released.
 * `v1.0.1`: Added single character encoding using UTF-8, cleaned up code, added better comments.
-* `v1.1.0`: <span style="color: red;"><i><b>Fixed <u>critical</u> bug.</b></i></span>
+* `v1.1.0`: Fixed critical bug.
+* `v1.1.1`: Fixed edge case, code speedup.
 
 ## Installation
 
@@ -60,6 +61,8 @@ If a value is passed that does not match one of these data types, an error is th
     * Similarly, the Lookup array must be the same on both the Writer and Reader.
 
 * This will underperform if you do not use the lookup table. In fact, JSON can achieve a somewhat similar output size but do it 3x faster.
+
+* Do not use/access private methods/properties unless you know what you're doing.
 
 ## Examples
 

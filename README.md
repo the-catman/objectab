@@ -17,7 +17,7 @@ Copy [index.ts](./index.ts) into your project and use it.
 
 ### What is this library?
 
-This is a library for converting some JavaScript objects into a Uint8Array and back. However, I didn't originally come up with the idea of doing this.
+This is a library for serializing JavaScript objects into a Uint8Array and back. However, I didn't originally come up with the idea of doing this.
 
 ### Is it like JSON?
 
@@ -35,6 +35,7 @@ I have tested this, and it most likely is reliable. If you do find an edge case 
 
 * Add double precision support.
 * Allow more flexibility while writing data (i.e. option to store as single precision or double precision, etc).
+* Fix testing bug with floating point numbers (minor).
 
 ## Pull requests and issues
 
